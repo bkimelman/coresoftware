@@ -267,7 +267,7 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
     hdrphi = new TH1F("hdrphi","r * dphi", 200, -0.05, 0.05);
     hnclus = new TH1F("hnclus", " nclusters ", 3, 0., 3.);
 
-    fout2.reset ( new TFile(m_histogramfilename2.c_str(),"RECREATE") );
+    m_debugfile.reset ( new TFile(m_debugfilename.c_str(),"RECREATE") );
     match_ntup = new TNtuple("match_ntup","Match NTuple","event:truthR:truthPhi:recoR:recoPhi:recoZ:nclus:r1:phi1:e1:layer1:r2:phi2:e2:layer2");
   }
 
@@ -817,14 +817,16 @@ int PHTpcCentralMembraneMatcher::End(PHCompositeNode * /*topNode*/ )
     fout->Close();
   }
 
-  if(m_savehistograms && fout2)
+  if(m_savehistograms && m_debugfile)
   {
-    fout2->cd();
+    m_debugfile->cd();
 
     match_ntup->Write();
     hit_r_phi->Write();
     clust_r_phi_pos->Write();
     clust_r_phi_neg->Write();
+
+    m_debugfile->Close();
   }
 
   return Fun4AllReturnCodes::EVENT_OK;
@@ -862,7 +864,24 @@ int  PHTpcCentralMembraneMatcher::GetNodes(PHCompositeNode* topNode)
   // create node for results of matching
   std::cout << "Creating node CM_FLASH_DIFFERENCES" << std::endl;  
   PHNodeIterator iter(topNode);
+
   
+  // Looking for the DST node
+  PHCompositeNode *runNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "RUN"));
+  if (!runNode)
+    {
+      std::cout << PHWHERE << "RUN Node missing, doing nothing." << std::endl;
+      return Fun4AllReturnCodes::ABORTRUN;
+    }      
+  PHNodeIterator runiter(runNode);
+  m_cm_flash_diffs = new CMFlashDifferenceContainerv1;
+  PHIODataNode<PHObject> *CMFlashDifferenceNode =
+    new PHIODataNode<PHObject>(m_cm_flash_diffs, "CM_FLASH_DIFFERENCES", "PHObject");
+  runNode->addNode(CMFlashDifferenceNode);
+
+
+
+  /*
   // Looking for the DST node
   PHCompositeNode *dstNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "DST"));
   if (!dstNode)
@@ -883,7 +902,7 @@ int  PHTpcCentralMembraneMatcher::GetNodes(PHCompositeNode* topNode)
   PHIODataNode<PHObject> *CMFlashDifferenceNode =
     new PHIODataNode<PHObject>(m_cm_flash_diffs, "CM_FLASH_DIFFERENCES", "PHObject");
   DetNode->addNode(CMFlashDifferenceNode);
-
+  */
     
   //// output tpc fluctuation distortion container
   //// this one is filled on the fly on a per-CM-event basis, and applied in the tracking chain

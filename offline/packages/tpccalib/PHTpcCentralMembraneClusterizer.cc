@@ -177,6 +177,8 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
   mean_z_content_minus = mean_z_content_minus/hz_neg->GetNbinsX();
  
 
+  std::cout << "mean_z_content_plus " << mean_z_content_plus << "   mean_z_content_minus " << mean_z_content_minus << std::endl;
+
   //use peak in z distributions to identify if there is a CM Flash. Peak should be >20% of entries (needs to be tuned)
   if(hz_pos->GetMaximum() < 5*mean_z_content_plus || hz_neg->GetMaximum() < 5*mean_z_content_minus) return Fun4AllReturnCodes::EVENT_OK;
 
@@ -512,10 +514,12 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
       }
     } else {
 
+      if(isAcrossGap[i]) continue;
+
       if(_histos)  hClustE[2]->Fill(energy[i]);
       // These single cluster cases have good phi, but do not have a good radius centroid estimate - may want to skip them, record nclusters and identify if across gap
       //      if(layer[i] == 7) isAcrossGap[i] = true;
-
+      
       aveenergy.push_back(energy[i]);
       avepos.push_back(pos[i]);
       nclusters.push_back(1);
@@ -534,7 +538,6 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
   for(unsigned int iv = 0; iv <avepos.size(); ++iv)
   {
     auto cmfc = new CMFlashClusterv3();
-
 
     cmfc->setX(avepos[iv].X());
     cmfc->setY(avepos[iv].Y());
