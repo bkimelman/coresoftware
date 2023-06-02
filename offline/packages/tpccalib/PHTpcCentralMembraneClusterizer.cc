@@ -242,10 +242,10 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
       //Find which phiMod bin cluster is in (with given layer) and if counts below threshold don't use
       if(z >= 0){
 	phiBin = hphi_reco_pos[lay-7]->GetXaxis()->FindBin(phiMod);
-	if(hphi_reco_pos[lay-7]->GetBinContent(phiBin) < m_moduloThreshold) aboveThreshold = false;
+	if(hphi_reco_pos[lay-7]->GetBinContent(phiBin) < (m_moduloThreshold + (mean_z_content_plus/18.0))) aboveThreshold = false;
       }else{
 	phiBin = hphi_reco_neg[lay-7]->GetXaxis()->FindBin(phiMod);
-	if(hphi_reco_neg[lay-7]->GetBinContent(phiBin) < m_moduloThreshold) aboveThreshold = false;
+	if(hphi_reco_neg[lay-7]->GetBinContent(phiBin) < (m_moduloThreshold + (mean_z_content_minus/18.0))) aboveThreshold = false;
       }
 
       if( !aboveThreshold ) continue;
@@ -629,6 +629,9 @@ int PHTpcCentralMembraneClusterizer::End(PHCompositeNode * /*topNode*/ )
     hDist2Adj->Write();
     
     for(int i=0; i<47; i++){
+      hphi_reco_pos[i]->Write();
+      hphi_reco_neg[i]->Write();
+
       hphi_reco_pair_pos[i]->Write();
       hphi_reco_pair_neg[i]->Write();
     }

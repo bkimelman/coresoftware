@@ -506,6 +506,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     R23Gap_neg = std::distance(clust_RGaps_neg.begin(),std::max_element(clust_RGaps_neg.begin()+R12Gap_neg+1,clust_RGaps_neg.end()));
   }
 
+  int min_match_pos = 100;
+  int min_match_neg = 100;
   std::vector<int> hitMatches_pos;
   //match cluster peaks to hit peaks using gap positions
   for(int i=0; i<(int)clust_RPeaks_pos.size(); i++){
@@ -518,6 +520,7 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
       if(clust_RGaps_pos[R12Gap_pos] > 3.6) hitMatches_pos[i] -= 1;
       if(clust_RGaps_pos[R12Gap_pos] > 4.6) hitMatches_pos[i] -= 1;
       if(clust_RGaps_pos[R12Gap_pos] > 5.8) hitMatches_pos[i] -= 1;      
+      if(hitMatches_pos[i] < min_match_pos) min_match_pos = hitMatches_pos[i];
     }
     //module 1-2 gap is between 15 & 16
     else if(i < (R23Gap_pos+1) && i >= (R12Gap_pos+1)) hitMatches_pos.push_back(15+1 + i - (R12Gap_pos+1));
@@ -534,6 +537,7 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
       if(clust_RGaps_neg[R12Gap_neg] > 3.6) hitMatches_neg[i] -= 1;
       if(clust_RGaps_neg[R12Gap_neg] > 4.6) hitMatches_neg[i] -= 1;
       if(clust_RGaps_neg[R12Gap_neg] > 5.8) hitMatches_neg[i] -= 1;
+      if(hitMatches_neg[i] < min_match_neg) min_match_neg = hitMatches_neg[i];
     }
     else if(i < (R23Gap_neg+1) && i >= (R12Gap_neg+1)) hitMatches_neg.push_back(15+1 + i - (R12Gap_neg+1));
     else if(i >= R23Gap_neg+1) hitMatches_neg.push_back(23+1 + i - (R23Gap_neg+1));
@@ -676,6 +680,16 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     const auto n_reco_size2 = std::count_if( reco_nclusters.begin(), reco_nclusters.end(), []( const unsigned int& value ) { return value==2; } );
     std::cout << "PHTpcCentralMembraneMatcher::process_event - m_truth_pos size: " << m_truth_pos.size() << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - m_truth_pos size, r>30cm: " << n_valid_truth << std::endl;
+    int pos_stripes_add = 0;
+    int neg_stripes_add = 0;
+    int nStr[8] = {3,4,4,4,4,5,4,5};
+    for(int str=min_match_pos; str <= 7; str++){
+      pos_stripes_add += nStr[str]*18;
+    } 
+    for(int str=min_match_neg; str <= 7; str++){
+      neg_stripes_add += nStr[str]*18;
+    } 
+    std::cout << "PHTpcCentralMembraneMatcher::process_event - m_truth_pos size, r>30cm + rows below with match: " << n_valid_truth + pos_stripes_add + neg_stripes_add<< std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - reco_pos size: " << reco_pos.size() << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - reco_pos size (nclus==1): " << n_reco_size1 << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - reco_pos size (nclus==2): " << n_reco_size2 << std::endl;
@@ -867,7 +881,7 @@ int  PHTpcCentralMembraneMatcher::GetNodes(PHCompositeNode* topNode)
   PHNodeIterator iter(topNode);
 
   
-  // Looking for the DST node
+  // Looking for the RUN node
   PHCompositeNode *runNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "RUN"));
   if (!runNode)
     {
@@ -911,9 +925,9 @@ int  PHTpcCentralMembraneMatcher::GetNodes(PHCompositeNode* topNode)
   m_dcc_out = findNode::getClass<TpcDistortionCorrectionContainer>(topNode,dcc_out_node_name);
   if( !m_dcc_out )
   { 
-   
-     /// Get the RUN node and check
-     auto runNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "RUN"));
+    
+    /// Get the RUN node and check
+     //auto runNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "RUN"));
      if (!runNode)
      {
        std::cout << "PHTpcCentralMembraneMatcher::InitRun - RUN Node missing, quitting" << std::endl;
