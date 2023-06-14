@@ -72,6 +72,11 @@ class TrkrCluster : public PHObject
   virtual float getTime() const { return NAN;}
   virtual char getSize() const {return std::numeric_limits<char>::max(); }
   
+  virtual unsigned long long getParentID() const { return ULONG_LONG_MAX; }
+  virtual void setParentID(unsigned long long) {}
+  virtual double getPctParentID() const { return NAN; }
+  virtual void setPctParentID(double) {}
+
 
   //
   // convenience interface

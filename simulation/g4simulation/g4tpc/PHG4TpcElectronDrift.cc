@@ -193,13 +193,7 @@ int PHG4TpcElectronDrift::InitRun(PHCompositeNode *topNode)
 
   seggeonodename = "CYLINDERCELLGEOM_SVTX";  // + detector;
   seggeo = findNode::getClass<PHG4TpcCylinderGeomContainer>(topNode, seggeonodename);
-  if (!seggeo)
-  {
-    seggeo = new PHG4TpcCylinderGeomContainer();
-    auto newNode = new PHIODataNode<PHObject>(seggeo, seggeonodename, "PHObject");
-    runNode->addNode(newNode);
-  }
-
+  assert( seggeo );
   
   UpdateParametersWithMacro();
   PHNodeIterator runIter(runNode);
@@ -301,7 +295,6 @@ int PHG4TpcElectronDrift::InitRun(PHCompositeNode *topNode)
   }
 
   padplane->InitRun(topNode);
-  padplane->CreateReadoutGeometry(topNode, seggeo);
 
   // print all layers radii
   if (Verbosity())
@@ -386,6 +379,9 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
   // clustering loopers in the same HitSetKey surfaces in multiple passes
   for (auto hiter = hit_begin_end.first; hiter != hit_begin_end.second; ++hiter)
   {
+    
+    std::cout << PHWHERE << "     hit num: " << count_g4hits << "   z: " << hiter->second->get_z(0) << "   hitID: " << hiter->second->get_hit_id() << "   hiter first " << hiter->first << std::endl;
+
     count_g4hits++;
     dump_counter++;
 

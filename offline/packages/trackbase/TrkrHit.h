@@ -48,6 +48,9 @@ class TrkrHit : public PHObject
   virtual short int getCrossing() { return 0;}
   */
 
+  virtual void setParentID(const unsigned long long) {}
+  virtual unsigned long long getParentID() { return ULONG_LONG_MAX; }
+
  protected:
 
   ClassDefOverride(TrkrHit, 1);
