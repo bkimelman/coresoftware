@@ -94,6 +94,10 @@ class CMFlashCluster : public PHObject
   virtual void setIsPhiGap(bool) {}
   virtual bool getIsPhiGap() const { return false; }
 
+  virtual unsigned long long getParentID() const {return ULONG_LONG_MAX;}
+  virtual void setParentID(unsigned long long) {}
+  virtual double getPctParentID() const {return NAN;}
+  virtual void setPctParentID(double) {}
 
  protected:
   CMFlashCluster() = default;

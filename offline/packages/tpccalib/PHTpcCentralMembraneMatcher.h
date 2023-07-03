@@ -228,6 +228,7 @@ class PHTpcCentralMembraneMatcher : public SubsysReco
   
   /// store centers of all central membrane pads
   std::vector<TVector3> m_truth_pos;
+  std::vector<unsigned long long> m_truth_parentID;
 
   //@}
 

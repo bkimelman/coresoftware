@@ -59,7 +59,7 @@ class PHG4TpcCentralMembrane : public SubsysReco, public PHParameterInterface
 
   /// g4hitnode name
   std::string hitnodename = "G4HIT_TPC";
-  std::vector<PHG4Hitv1*> PHG4Hits;
+  std::vector<PHG4Hit*> PHG4Hits;
 
   int m_eventModulo = 10;
   int m_eventNum = 0;
@@ -216,7 +216,7 @@ class PHG4TpcCentralMembrane : public SubsysReco, public PHParameterInterface
                    const double x3b[][nRadii], const double y3b[][nRadii],
                    double x, double y, const std::array<int, nRadii>& nGoodStripes) const;
 
-  PHG4Hitv1* GetPHG4HitFromStripe(int petalID, int moduleID, int radiusID, int stripeID, int nElectrons) const;
+  PHG4Hit* GetPHG4HitFromStripe(int petalID, int moduleID, int radiusID, int stripeID, int nElectrons) const;
 };
 
 #endif

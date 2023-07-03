@@ -99,7 +99,7 @@ int PHG4TpcCentralMembrane::InitRun(PHCompositeNode* /* topNode */)
    * - adjust hit time and z,
    * - insert in container
    */
-  auto adjust_hits = [&](PHG4Hitv1* source) {
+  auto adjust_hits = [&](PHG4Hit* source) {
     // adjust time to account for central membrane delay
     source->set_t(0, m_centralMembraneDelay);
     source->set_t(1, m_centralMembraneDelay);
@@ -107,17 +107,17 @@ int PHG4TpcCentralMembrane::InitRun(PHCompositeNode* /* topNode */)
     // assign to positive side
     source->set_z(0, 1.);
     source->set_z(1, 1.);
-    std::cout << "source hit id " << source->get_hit_id() << std::endl;
+    //std::cout << "source hit id " << source->get_hit_id() << std::endl;
 
     PHG4Hits.push_back(source);
 
     // clone
     // assign to negative side and insert in list
-    auto copy = new PHG4Hitv1(source);
+    PHG4Hit *copy = new PHG4Hitv1(source);
     copy->set_z(0, -1.);
     copy->set_z(1, -1.);
     copy->set_hit_id( (PHG4HitDefs::keytype) (copy->get_hit_id() + (18*10000)));
-    std::cout << "copy hit id " << copy->get_hit_id() << std::endl;
+    //std::cout << "copy hit id " << copy->get_hit_id() << std::endl;
 
     PHG4Hits.push_back(copy);
   };
@@ -181,9 +181,23 @@ int PHG4TpcCentralMembrane::process_event(PHCompositeNode* topNode)
   // copy all hits from G4hits vector into container
   for (const auto& hit : PHG4Hits)
   {
-    auto copy = new PHG4Hitv1(hit);
-    g4hitcontainer->AddHit(detId, copy);
+    PHG4Hit *copy = new PHG4Hitv1(hit);
+    //    g4hitcontainer->AddHit(detId, copy);
+    g4hitcontainer->AddHit(copy);
   }
+
+
+  /*
+  PHG4HitContainer::ConstRange hit_begin_end = g4hitcontainer->getHits();
+  int hitCount = 0;
+  for (auto hiter = hit_begin_end.first; hiter != hit_begin_end.second; ++hiter){
+
+    std::cout << PHWHERE << "     hit num: " << hitCount << "   z: " << hiter->second->get_z(0) << "   hitID: " << hiter->second->get_hit_id() << "   hiter first " << hiter->first << std::endl;
+
+    hitCount++;
+  
+  }
+  */
 
   m_eventNum++;
 
@@ -448,10 +462,10 @@ int PHG4TpcCentralMembrane::getSearchResult(double xcheck, double ycheck) const
   return result;
 }
 
-PHG4Hitv1* PHG4TpcCentralMembrane::GetPHG4HitFromStripe(int petalID, int moduleID, int radiusID, int stripeID, int nElectrons) const
+PHG4Hit* PHG4TpcCentralMembrane::GetPHG4HitFromStripe(int petalID, int moduleID, int radiusID, int stripeID, int nElectrons) const
 {                                       //this function generates a PHG4 hit using coordinates from a stripe
   const double phi_petal = M_PI / 9.0;  // angle span of one petal
-  PHG4Hitv1* hit;
+  PHG4Hit* hit;
   TVector3 dummyPos0, dummyPos1;
 
   //could put in some sanity checks here but probably not necessary since this is only really used within the class
@@ -461,7 +475,7 @@ PHG4Hitv1* PHG4TpcCentralMembrane::GetPHG4HitFromStripe(int petalID, int moduleI
   //from phg4tpcsteppingaction.cc
   hit = new PHG4Hitv1();
   hit->set_layer(-1);  // dummy number
-  hit->set_hit_id( (PHG4HitDefs::keytype) ((10000*petalID) + (100*radiusID) + stripeID));
+  hit->set_hit_id( (PHG4HitDefs::keytype) ((10000*petalID) + (100*(radiusID+(8*moduleID))) + stripeID));
   //here we set the entrance values in cm
   if (moduleID == 0)
   {

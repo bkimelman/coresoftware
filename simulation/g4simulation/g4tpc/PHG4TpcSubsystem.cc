@@ -39,13 +39,17 @@ PHG4TpcSubsystem::~PHG4TpcSubsystem()
 //_______________________________________________________________________
 int PHG4TpcSubsystem::InitRunSubsystem(PHCompositeNode *topNode)
 {
+
+  std::cout << PHWHERE << " starting init" << std::endl;
   PHNodeIterator iter(topNode);
   PHCompositeNode *dstNode = dynamic_cast<PHCompositeNode *>(iter.findFirst("PHCompositeNode", "DST"));
 
   // create display settings before detector (detector adds its volumes to it)
   m_DisplayAction = new PHG4TpcDisplayAction(Name());
   // create detector
+  std::cout << "making detector" << std::endl;
   m_Detector = new PHG4TpcDetector(this, topNode, GetParams(), Name());
+  std::cout << "made detector" << std::endl;
   m_Detector->SuperDetector(SuperDetector());
   m_Detector->OverlapCheck(CheckOverlap());
   std::set<std::string> nodes;

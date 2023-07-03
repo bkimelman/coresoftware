@@ -11,7 +11,7 @@
 #include <phool/PHCompositeNode.h>
 #include <phool/getClass.h>
 #include <phool/phool.h>
-#include <trackbase/CMFlashClusterv3.h>
+#include <trackbase/CMFlashClusterv4.h>
 #include <trackbase/CMFlashClusterContainerv1.h>
 #include <trackbase/CMFlashDifferencev1.h>
 #include <trackbase/CMFlashDifferenceContainerv1.h>
@@ -267,7 +267,7 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
     hnclus = new TH1F("hnclus", " nclusters ", 3, 0., 3.);
 
     m_debugfile.reset ( new TFile(m_debugfilename.c_str(),"RECREATE") );
-    match_ntup = new TNtuple("match_ntup","Match NTuple","event:truthR:truthPhi:recoR:recoPhi:recoZ:nclus:r1:phi1:e1:layer1:r2:phi2:e2:layer2");
+    match_ntup = new TNtuple("match_ntup","Match NTuple","event:truthR:truthPhi:recoR:recoPhi:recoZ:correctMatch:nclus:r1:phi1:e1:r2:phi2:e2:");
   }
 
   hit_r_phi = new TH2F("hit_r_phi","hit r vs #phi;#phi (rad); r (cm)",360,-M_PI,M_PI,500,0,100);
@@ -288,15 +288,17 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
    * - assign proper z,
    * - insert in container
    */
-  auto save_truth_position = [&](TVector3 source) 
+  auto save_truth_position = [&](TVector3 source, unsigned long long parentID) 
   {
     source.SetZ( +1 );
     m_truth_pos.push_back( source );
+    m_truth_parentID.push_back(parentID);
 
     hit_r_phi->Fill(source.Phi(), source.Perp());
 
     source.SetZ( -1 );
     m_truth_pos.push_back( source );
+    m_truth_parentID.push_back(parentID + 180000);
 
     hit_r_phi->Fill(source.Phi(), source.Perp());
   };
@@ -308,7 +310,7 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
 	{
 	  TVector3 dummyPos(cx1_e[i][j], cy1_e[i][j], 0.0);
 	  dummyPos.RotateZ(k * phi_petal);
-	  save_truth_position(dummyPos);
+	  save_truth_position(dummyPos, (k*10000) + (j*100) + i );
 
 	  if(Verbosity() > 2)	  
 	    std::cout << " i " << i << " j " << j << " k " << k << " x1 " << dummyPos.X() << " y1 " << dummyPos.Y()
@@ -324,7 +326,7 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
 	{
 	  TVector3 dummyPos(cx1[i][j], cy1[i][j], 0.0);
 	  dummyPos.RotateZ(k * phi_petal);
-	  save_truth_position(dummyPos);
+	  save_truth_position(dummyPos, (k*10000) + ((j+8)*100) + i );
 
 	  if(Verbosity() > 2)	  
 	    std::cout << " i " << i << " j " << j << " k " << k << " x1 " << dummyPos.X() << " y1 " << dummyPos.Y()
@@ -339,7 +341,7 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
 	{
 	  TVector3 dummyPos(cx2[i][j], cy2[i][j], 0.0);
 	  dummyPos.RotateZ(k * phi_petal);
-	  save_truth_position(dummyPos);
+	  save_truth_position(dummyPos, (k*10000) + ((j+16)*100) + i );
 
 	  if(Verbosity() > 2)	  
 	    std::cout << " i " << i << " j " << j << " k " << k << " x1 " << dummyPos.X() << " y1 " << dummyPos.Y()
@@ -354,7 +356,8 @@ int PHTpcCentralMembraneMatcher::InitRun(PHCompositeNode *topNode)
 	{
 	  TVector3 dummyPos(cx3[i][j], cy3[i][j], 0.0);
 	  dummyPos.RotateZ(k * phi_petal);
-	  save_truth_position(dummyPos);
+	  save_truth_position(dummyPos, (k*10000) + ((j+24)*100) + i );
+
 
 	  if(Verbosity() > 2)
 	    std::cout << " i " << i << " j " << j << " k " << k << " x1 " << dummyPos.X() << " y1 " << dummyPos.Y()
@@ -379,6 +382,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
   std::vector<unsigned int> adc2;
   std::vector<unsigned int> layer1;
   std::vector<unsigned int> layer2;
+  std::vector<unsigned long long> reco_parentID;
+  std::vector<double> reco_pctParentID;
 
   // reset output distortion correction container histograms
   for( const auto& harray:{m_dcc_out->m_hDRint, m_dcc_out->m_hDPint, m_dcc_out->m_hDZint, m_dcc_out->m_hentries} )
@@ -443,6 +448,11 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
       adc2.push_back(cmclus->getAdc2());
       layer1.push_back(cmclus->getLayer1());
       layer2.push_back(cmclus->getLayer2());
+
+      //      std::cout << "parent ID: " << cmclus->getParentID() << "   pctParentID: " << cmclus->getPctParentID() << std::endl;
+      reco_parentID.push_back(cmclus->getParentID());
+      reco_pctParentID.push_back(cmclus->getPctParentID());
+      
 
       if(tmp_pos.Z() < 0) clust_r_phi_neg->Fill(tmp_pos.Phi(),tmp_pos.Perp());
       else clust_r_phi_pos->Fill(tmp_pos.Phi(),tmp_pos.Perp());
@@ -678,6 +688,10 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     const auto n_valid_truth = std::count_if( m_truth_pos.begin(), m_truth_pos.end(), []( const TVector3& pos ) { return get_r( pos.x(), pos.y() ) >  30; } );
     const auto n_reco_size1 = std::count_if( reco_nclusters.begin(), reco_nclusters.end(), []( const unsigned int& value ) { return value==1; } );
     const auto n_reco_size2 = std::count_if( reco_nclusters.begin(), reco_nclusters.end(), []( const unsigned int& value ) { return value==2; } );
+    int n_correct_match = 0;
+    for(int pairs=0; pairs<(int)matched_pair.size(); pairs++){
+      if( m_truth_parentID[matched_pair[pairs].first] == reco_parentID[matched_pair[pairs].second]) n_correct_match++;
+    }
     std::cout << "PHTpcCentralMembraneMatcher::process_event - m_truth_pos size: " << m_truth_pos.size() << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - m_truth_pos size, r>30cm: " << n_valid_truth << std::endl;
     int pos_stripes_add = 0;
@@ -694,6 +708,10 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     std::cout << "PHTpcCentralMembraneMatcher::process_event - reco_pos size (nclus==1): " << n_reco_size1 << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - reco_pos size (nclus==2): " << n_reco_size2 << std::endl;
     std::cout << "PHTpcCentralMembraneMatcher::process_event - matched_pair size: " << matched_pair.size() << std::endl;
+    std::cout << "PHTpcCentralMembraneMatcher::process_event - number of correct matches: " << n_correct_match << std::endl;
+    std::cout << "PHTpcCentralMembraneMatcher::process_event - number of correct matches over number of matches: " << 1.0*n_correct_match/matched_pair.size() << std::endl;
+    std::cout << "PHTpcCentralMembraneMatcher::process_event - number of correct matches over number of truth: " << 1.0*n_correct_match/m_truth_pos.size() << std::endl;
+    std::cout << "PHTpcCentralMembraneMatcher::process_event - number of correct matches over number of truth r>30cm: " << 1.0*n_correct_match/n_valid_truth << std::endl;
   }
   
   for(unsigned int ip = 0; ip < matched_pair.size(); ++ip)
@@ -716,7 +734,12 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     
     m_cm_flash_diffs->addDifferenceSpecifyKey(key, cmdiff);
     
-    if(m_savehistograms) match_ntup->Fill(m_event_index,m_truth_pos[p.first].Perp(),m_truth_pos[p.first].Phi(),reco_pos[p.second].Perp(),reco_pos[p.second].Phi(),reco_pos[p.second].Z(),nclus,pos1[p.second].Perp(),pos1[p.second].Phi(),adc1[p.second],layer1[p.second],pos2[p.second].Perp(),pos2[p.second].Phi(),adc2[p.second],layer2[p.second]);
+
+    double isCorrectMatch = 0.0;
+
+    if( m_truth_parentID[p.first] == reco_parentID[p.second]) isCorrectMatch = 1.0;
+
+    if(m_savehistograms) match_ntup->Fill(m_event_index,m_truth_pos[p.first].Perp(),m_truth_pos[p.first].Phi(),reco_pos[p.second].Perp(),reco_pos[p.second].Phi(),reco_pos[p.second].Z(),isCorrectMatch,nclus,pos1[p.second].Perp(),pos1[p.second].Phi(),adc1[p.second],pos2[p.second].Perp(),pos2[p.second].Phi(),adc2[p.second]);
 
     // store cluster position
     const double clus_r = reco_pos[p.second].Perp();

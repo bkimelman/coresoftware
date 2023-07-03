@@ -78,6 +78,8 @@ void TrkrClusterv6::CopyFrom( const TrkrCluster& source )
   setZSize(source.getZSize());
   setOverlap(source.getOverlap());
   setEdge(source.getEdge());
+  setParentID(source.getParentID());
+  setPctParentID(source.getPctParentID());
 }
 
 

@@ -17,7 +17,7 @@
 #include <trackbase/TrkrHit.h>   // for TrkrHit
 #include <trackbase/TrkrHitSet.h>
 #include <trackbase/TrkrHitSetContainer.h>
-#include <trackbase/TrkrHitv2.h>  // for TrkrHit
+#include <trackbase/TrkrHitv3.h>  // for TrkrHit
 
 #include <g4tracking/TrkrTruthTrack.h>
 #include <g4tracking/TrkrTruthTrackv1.h>
@@ -178,9 +178,9 @@ void PHG4TpcPadPlaneReadout::MapToPadPlane(
       layernum = LayerGeom->get_layer();
       /* pass_data.layerGeom = LayerGeom; */
       /* pass_data.layer = layernum; */
-      if (Verbosity() > 1000)
+      if (Verbosity() > 20)
         std::cout << " g4hit id " << hiter->first << " rad_gem " << rad_gem << " rad_low " << rad_low << " rad_high " << rad_high
-                  << " layer  " << hiter->second->get_layer() << " want to change to " << layernum << std::endl;
+                  << " layer  " << hiter->second->get_layer() << " want to change to " << layernum << std::endl;      
       hiter->second->set_layer(layernum);  // have to set here, since the stepping action knows nothing about layers
     }
 
@@ -333,11 +333,13 @@ void PHG4TpcPadPlaneReadout::MapToPadPlane(
       if (!hit)
       {
         // create a new one
-        hit = new TrkrHitv2();
+        hit = new TrkrHitv3();
         hitsetit->second->addHitSpecificKey(hitkey, hit);
       }
       // Either way, add the energy to it  -- adc values will be added at digitization
       hit->addEnergy(neffelectrons);
+      //      std::cout << "parent id first " << hiter->first << "   parent id get " << hiter->second->get_hit_id() << std::endl;
+      hit->setParentID(hiter->first);
 
       tpc_truth_clusterer.addhitset(hitsetkey, hitkey, neffelectrons);
 
@@ -348,11 +350,12 @@ void PHG4TpcPadPlaneReadout::MapToPadPlane(
       if (!single_hit)
       {
         // create a new one
-        single_hit = new TrkrHitv2();
+        single_hit = new TrkrHitv3();
         single_hitsetit->second->addHitSpecificKey(hitkey, single_hit);
       }
       // Either way, add the energy to it  -- adc values will be added at digitization
       single_hit->addEnergy(neffelectrons);
+      single_hit->setParentID(hiter->first);
 
       /*
       if (Verbosity() > 0)

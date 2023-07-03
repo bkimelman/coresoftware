@@ -21,7 +21,8 @@
 #include <trackbase/TrkrDefs.h>
 #include <trackbase/TpcDefs.h>
 #include <trackbase/TrkrCluster.h>
-#include <trackbase/CMFlashClusterv3.h>
+#include <trackbase/TrkrClusterv6.h>
+#include <trackbase/CMFlashClusterv4.h>
 #include <trackbase/CMFlashClusterContainerv1.h>
 #include <trackbase/ActsGeometry.h>
 #include <trackbase/TrkrCluster.h>
@@ -110,10 +111,14 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
   std::vector<int>i_pair; //vector for pair matching
   std::vector<float>energy;//vector for energy values of clusters
   std::vector<bool>isAcrossGap;
+  std::vector<unsigned long long>parentIDs;
+  std::vector<double>pctParentIDs;
   int nTpcClust = 0;
  
   double mean_z_content_plus = 0.0;
   double mean_z_content_minus = 0.0;
+
+  int clusCount = 0;
 
   //first loop over clusters to make mod phi histograms of each layer and each pair of layers
   for(const auto& hitsetkey:_cluster_map->getHitSetKeys(TrkrDefs::TrkrId::tpcId))
@@ -124,6 +129,12 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
     {
       
       const auto& [cluskey, cluster] = *clusiter;
+
+      //      TrkrClusterv6 *clusterv6 = new TrkrClusterv6();
+      //      clusterv6->CopyFrom(clusiter->second);
+
+      //std::cout << "cluster " << clusCount << "   parentID: " << cluster->getParentID() << "   pctParentID: " << cluster->getPctParentID() << std::endl;
+
       auto glob = tgeometry->getGlobalPosition(cluskey, cluster);
       TVector3 tmp_pos(glob(0),glob(1),glob(2));
 
@@ -162,9 +173,9 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
 	if(layer < 54) hphi_reco_pair_neg[layer-7]->Fill(phiMod);
 	if(layer > 7) hphi_reco_pair_neg[layer-8]->Fill(phiMod);
       }
-
-    }
-  }
+      clusCount++;
+    }//end loop over clusters
+  }//end loop over hitsets
 
   for(int i=1; i<hz_pos->GetNbinsX(); i++){
     mean_z_content_plus += hz_pos->GetBinContent(i);
@@ -256,7 +267,12 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
       //require that z be within 1cm of peak in z distributions (separate for each side)
       if( (z>=0 && std::abs(z - hz_pos->GetBinCenter(hz_pos->GetMaximumBin())) > 1.0) || (z<0 && std::abs(z - hz_neg->GetBinCenter(hz_neg->GetMaximumBin())) > 1.0) ) continue;
 
+      //std::cout << "accepted cluster " << m_accepted_clusters << "   parentID: " << cluster->getParentID() << "   pctParentID: " << cluster->getPctParentID() << std::endl;
+
+
       ++m_accepted_clusters;
+
+
       
       i_pair.push_back(-1);
       energy.push_back(cluster->getAdc());
@@ -265,6 +281,8 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
       layer.push_back((int)(TrkrDefs::getLayer(cluskey)));
       side.push_back(TpcDefs::getSide(cluskey));
       isAcrossGap.push_back(false);
+      parentIDs.push_back(cluster->getParentID());
+      pctParentIDs.push_back(cluster->getPctParentID());
       if(Verbosity() > 0) std::cout << ":\t" << x << "\t" << y << "\t" << z <<std::endl;
     }
   }
@@ -419,6 +437,8 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
   std::vector<unsigned int> nclusters;
   std::vector<bool> isREdge;
   std::vector<std::pair<int,int> > pairNums;
+  std::vector<unsigned long long> parentID;
+  std::vector<double> pctParentID;
 
   //  int nR2 = 0;
   //int nR3 = 0;
@@ -498,7 +518,15 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
         nclusters.push_back(2);
 	if(isAcrossGap[i] && isAcrossGap[i_pair[i]]) isREdge.push_back(true);
 	else isREdge.push_back(false);
-	
+
+	if(energy[i] > energy[i_pair[i]]){
+	  parentID.push_back(parentIDs[i]);
+	  pctParentID.push_back(energy[i]*pctParentIDs[i]/(energy[i]+energy[i_pair[i]]));
+	}else{
+	  parentID.push_back(parentIDs[i_pair[i]]);
+	  pctParentID.push_back(energy[i_pair[i]]*pctParentIDs[i_pair[i]]/(energy[i]+energy[i_pair[i]]));
+	}
+
 	tmp_pair.first = i;
 	tmp_pair.second = i_pair[i];
 	pairNums.push_back(tmp_pair);
@@ -524,6 +552,8 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
       avepos.push_back(pos[i]);
       nclusters.push_back(1);
       isREdge.push_back(isAcrossGap[i]);
+      parentID.push_back(parentIDs[i]);
+      pctParentID.push_back(pctParentIDs[i]);
       tmp_pair.first = i;
       tmp_pair.second = -1;
       pairNums.push_back(tmp_pair);
@@ -537,7 +567,7 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
   
   for(unsigned int iv = 0; iv <avepos.size(); ++iv)
   {
-    auto cmfc = new CMFlashClusterv3();
+    auto cmfc = new CMFlashClusterv4();
 
     cmfc->setX(avepos[iv].X());
     cmfc->setY(avepos[iv].Y());
@@ -545,6 +575,8 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
     cmfc->setAdc(aveenergy[iv]);
     cmfc->setNclusters(nclusters[iv]);
     cmfc->setIsRGap(isREdge[iv]);
+    cmfc->setParentID(parentID[iv]);
+    cmfc->setPctParentID(pctParentID[iv]);
     
     int pair1 = pairNums[iv].first;
     int pair2 = pairNums[iv].second;

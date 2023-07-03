@@ -5,6 +5,7 @@
 #include <trackbase/TrkrClusterv3.h>
 #include <trackbase/TrkrClusterv4.h>
 #include <trackbase/TrkrClusterv5.h>
+#include <trackbase/TrkrClusterv6.h>
 #include <trackbase/TrkrClusterHitAssocv3.h>
 #include <trackbase/TrkrDefs.h>  // for hitkey, getLayer
 #include <trackbase/TrkrHit.h>
@@ -63,6 +64,7 @@ namespace
     unsigned short it = 0;
     unsigned short adc = 0;
     unsigned short edge = 0;
+    unsigned long long parentID = -1;
   };
 
   struct thread_data 
@@ -91,7 +93,7 @@ namespace
     unsigned short maxHalfSizePhi = 0;
     double m_tdriftmax = 0;
     double sampa_tbias = 0;
-    int cluster_version = 4;
+    int cluster_version = 6;
     std::vector<assoc> association_vector;
     std::vector<TrkrCluster*> cluster_vector;
     int verbosity = 0;
@@ -252,7 +254,7 @@ namespace
     return;
   }
 	
-  void get_cluster(int phibin, int tbin, const thread_data& my_data, const std::vector<std::vector<unsigned short>> &adcval, std::vector<ihit> &ihit_list, int &touch, int &edge)
+  void get_cluster(int phibin, int tbin, const thread_data& my_data, const std::vector<std::vector<unsigned short>> &adcval, unsigned long long parentID, std::vector<ihit> &ihit_list, int &touch, int &edge)
 	{
 	  // search along phi at the peak in t
 	 
@@ -271,6 +273,7 @@ namespace
 		hit.iphi = iphi;
 		hit.it = it;
 		hit.adc = adcval[iphi][it];
+		hit.parentID = parentID;
 		if(touch>0){
 		  if((iphi == (phibin - phidown))||
 		     (iphi == (phibin + phiup))){
@@ -311,6 +314,8 @@ namespace
       int clus_size = ihit_list.size();
       int max_adc  = 0;
       if(clus_size == 1) return;
+
+      std::vector<unsigned long long> parentIDs;
       //      std::cout << "process list" << std::endl;    
       std::vector<TrkrDefs::hitkey> hitkeyvec;
       for(auto iter = ihit_list.begin(); iter != ihit_list.end();++iter){
@@ -325,6 +330,8 @@ namespace
 	if(iphi < phibinlo) phibinlo = iphi;
 	if(it > tbinhi) tbinhi = it;
 	if(it < tbinlo) tbinlo = it;
+
+	parentIDs.push_back(iter->parentID);
 	
 	// update phi sums
 	//	double phi_center = my_data.layergeom->get_phicenter(iphi);
@@ -350,8 +357,27 @@ namespace
       //      std::cout << "done process list" << std::endl;
       if (adc_sum < 10){
 	hitkeyvec.clear();
+	parentIDs.clear();
 	return;  // skip obvious noise "clusters"
       }  
+
+      unsigned long long commonParentID = -1;
+      int maxNpIDs = 0;
+      for(int pID=0; pID<(int)parentIDs.size(); pID++){
+
+	int nPIDs = 0;
+	for(int pID2=0; pID2<(int)parentIDs.size(); pID2++){
+	  if(pID == pID2) continue;
+	  if(parentIDs[pID] == parentIDs[pID2]) nPIDs++;
+	}
+	if(nPIDs > maxNpIDs){
+	  maxNpIDs = nPIDs;
+	  commonParentID = parentIDs[pID];
+	}
+      }
+      double pctParentID = 1.0*maxNpIDs/parentIDs.size();
+
+
       // This is the global position
       double clusiphi = iphi_sum / adc_sum;
       double clusphi = my_data.layergeom->get_phi(clusiphi);
@@ -469,6 +495,26 @@ namespace
 	clus->setZError(sqrt(t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2)));
 	my_data.cluster_vector.push_back(clus);
 	}
+      }else if(my_data.cluster_version==6){
+	//std::cout << "ver5" << std::endl;
+	//	std::cout << "clus num" << my_data.cluster_vector.size() << " X " << local(0) << " Y " << clust << std::endl;
+	if(sqrt(phi_err_square) > 0.01){
+	auto clus = new TrkrClusterv6;
+	//auto clus = std::make_unique<TrkrClusterv3>();
+	clus->setAdc(adc_sum);  
+	clus->setMaxAdc(max_adc); 
+	clus->setEdge(nedge);
+	clus->setPhiSize(phisize);
+	clus->setZSize(tsize);
+	clus->setSubSurfKey(subsurfkey);      
+	clus->setLocalX(local(0));
+	clus->setLocalY(clust);
+	clus->setPhiError(sqrt(phi_err_square));
+	clus->setZError(sqrt(t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2)));
+	clus->setParentID(commonParentID);
+	clus->setPctParentID(pctParentID);
+	my_data.cluster_vector.push_back(clus);
+	}
       }
 	
       //std::cout << "end clus out" << std::endl;
@@ -521,7 +567,7 @@ namespace
       for (TrkrHitSet::ConstIterator hitr = hitrangei.first;
 	   hitr != hitrangei.second;
 	   ++hitr){
-	
+
 	if( TpcDefs::getPad(hitr->first) - phioffset < 0 ){
 	  //std::cout << "WARNING phibin out of range: " << TpcDefs::getPad(hitr->first) - phioffset << " | " << phibins << std::endl;
 	  continue;
@@ -556,6 +602,7 @@ namespace
 	    thisHit.it = tbin;
 	    thisHit.adc = adc;
 	    thisHit.edge = 0;
+	    thisHit.parentID = hitr->second->getParentID();
 	    all_hit_map.insert(std::make_pair(adc, thisHit));
 	  }
 	  if(adc>my_data->threshold){
@@ -639,13 +686,14 @@ namespace
       ihit hiHit = iter->second;
       int iphi = hiHit.iphi;
       int it = hiHit.it;
+      unsigned long long iparentID = hiHit.parentID;
       //put all hits in the all_hit_map (sorted by adc)
       //start with highest adc hit
       // -> cluster around it and get vector of hits
       std::vector<ihit> ihit_list;
       int ntouch = 0;
       int nedge  =0;
-      get_cluster(iphi, it, *my_data, adcval, ihit_list, ntouch, nedge );
+      get_cluster(iphi, it, *my_data, adcval, iparentID, ihit_list, ntouch, nedge );
       
       // -> calculate cluster parameters
       // -> add hits to truth association

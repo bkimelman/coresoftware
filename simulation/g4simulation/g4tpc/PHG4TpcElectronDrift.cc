@@ -6,6 +6,7 @@
 #include "PHG4TpcPadPlane.h"  // for PHG4TpcPadPlane
 
 #include <g4main/PHG4Hit.h>
+#include <g4main/PHG4Hitv1.h>
 #include <g4main/PHG4HitContainer.h>
 #include <g4main/PHG4Particlev3.h>
 #include <g4main/PHG4TruthInfoContainer.h>
@@ -16,7 +17,7 @@
 #include <trackbase/TrkrHitSetContainerv1.h>
 #include <trackbase/TrkrHitTruthAssoc.h>  // for TrkrHitTruthA...
 #include <trackbase/TrkrHitTruthAssocv1.h>
-#include <trackbase/TrkrHitv2.h>
+#include <trackbase/TrkrHitv3.h>
 
 #include <trackbase/TpcDefs.h>
 #include <g4tracking/TrkrTruthTrackv1.h>
@@ -380,7 +381,7 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
   for (auto hiter = hit_begin_end.first; hiter != hit_begin_end.second; ++hiter)
   {
     
-    std::cout << PHWHERE << "     hit num: " << count_g4hits << "   z: " << hiter->second->get_z(0) << "   hitID: " << hiter->second->get_hit_id() << "   hiter first " << hiter->first << std::endl;
+    //    std::cout << PHWHERE << "     hit num: " << count_g4hits << "   z: " << hiter->second->get_z(0) << "   hitID: " << hiter->second->get_hit_id() << "   hiter first " << hiter->first << std::endl;
 
     count_g4hits++;
     dump_counter++;
@@ -591,7 +592,7 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
       const int sector = TpcDefs::getSectorId(node_hitsetkey);
       const int side = TpcDefs::getSide(node_hitsetkey);
 
-      if (Verbosity() > 8)
+      if (Verbosity() > 100)
         std::cout << " hitsetkey " << node_hitsetkey << " layer " << layer << " sector " << sector << " side " << side << std::endl;
       // get all of the hits from the single hitset
       TrkrHitSet::ConstRange single_hit_range = single_hitset_iter->second->getHits();
@@ -658,12 +659,13 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
           if (!node_hit)
           {
             // Otherwise, create a new one
-            node_hit = new TrkrHitv2();
+            node_hit = new TrkrHitv3();
             node_hitsetit->second->addHitSpecificKey(temp_hitkey, node_hit);
           }
 
           // Either way, add the energy to it
           node_hit->addEnergy(temp_tpchit->getEnergy());
+	  node_hit->setParentID(temp_tpchit->getParentID());
 
         }  // end loop over temp hits
 
@@ -700,7 +702,7 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
       // we have an itrator to one TrkrHitSet for the Tpc from the trkrHitSetContainer
       TrkrDefs::hitsetkey hitsetkey = hitset_iter->first;
       const unsigned int layer = TrkrDefs::getLayer(hitsetkey);
-      if (layer != print_layer) continue;
+      //if (layer != print_layer) continue;
       const int sector = TpcDefs::getSectorId(hitsetkey);
       const int side = TpcDefs::getSide(hitsetkey);
 
@@ -716,7 +718,7 @@ int PHG4TpcElectronDrift::process_event(PHCompositeNode *topNode)
         TrkrDefs::hitkey hitkey = hit_iter->first;
         TrkrHit *tpchit = hit_iter->second;
         std::cout << "      hitkey " << hitkey << " pad " << TpcDefs::getPad(hitkey) << " z bin " << TpcDefs::getTBin(hitkey)
-                  << "  energy " << tpchit->getEnergy() << std::endl;
+                  << "  energy " << tpchit->getEnergy()  << " parentID " << tpchit->getParentID() << std::endl;
       }
     }
   }
