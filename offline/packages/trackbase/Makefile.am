@@ -50,6 +50,8 @@ pkginclude_HEADERS = \
   CMFlashDifferenceContainerv1.h \
   CMFlashDifferencev1.h \
   Calibrator.h \
+  ClusHitsVerbose.h \
+  ClusHitsVerbosev1.h \
   ClusterErrorPara.h \
   InttDefs.h \
   MvtxDefs.h \
@@ -113,6 +115,8 @@ ROOTDICTS = \
   CMFlashDifferenceContainerv1_Dict.cc \
   CMFlashDifference_Dict.cc \
   CMFlashDifferencev1_Dict.cc \
+  ClusHitsVerbose_Dict.cc \
+  ClusHitsVerbosev1_Dict.cc \
   RawHitSetContainer_Dict.cc \
   RawHitSetContainerv1_Dict.cc \
   RawHitSet_Dict.cc \
@@ -168,6 +172,8 @@ nobase_dist_pcm_DATA = \
   CMFlashDifferenceContainerv1_Dict_rdict.pcm \
   CMFlashDifference_Dict_rdict.pcm \
   CMFlashDifferencev1_Dict_rdict.pcm \
+  ClusHitsVerbose_Dict_rdict.pcm \
+  ClusHitsVerbosev1_Dict_rdict.pcm \
   RawHitSetContainer_Dict_rdict.pcm \
   RawHitSetContainerv1_Dict_rdict.pcm \
   RawHitSet_Dict_rdict.pcm \
@@ -223,6 +229,8 @@ libtrack_io_la_SOURCES = \
   CMFlashDifferenceContainerv1.cc \
   CMFlashDifferencev1.cc \
   ClusterErrorPara.cc \
+  ClusHitsVerbose.cc \
+  ClusHitsVerbosev1.cc \
   InttDefs.cc \
   MvtxDefs.cc \
   RawHitSet.cc \
