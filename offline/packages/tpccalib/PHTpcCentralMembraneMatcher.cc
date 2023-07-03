@@ -385,6 +385,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
   std::vector<unsigned long long> reco_parentID;
   std::vector<double> reco_pctParentID;
 
+  std::cout << PHWHERE << " process_event" << std::endl;
+
   // reset output distortion correction container histograms
   for( const auto& harray:{m_dcc_out->m_hDRint, m_dcc_out->m_hDPint, m_dcc_out->m_hDZint, m_dcc_out->m_hentries} )
   { 
@@ -392,7 +394,7 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
   clust_r_phi_pos->Reset();
   clust_r_phi_neg->Reset();
 
-  if(!m_corrected_CMcluster_map || m_corrected_CMcluster_map->size() < 100){
+  if(!m_corrected_CMcluster_map || m_corrected_CMcluster_map->size() < 10){//was100
     m_event_index++;
     return Fun4AllReturnCodes::EVENT_OK;
   }
@@ -459,7 +461,7 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
 
       
 
-      if(Verbosity())
+      if(Verbosity() > 0)
 	{
 	  double raw_rad = sqrt( cmclus->getX()*cmclus->getX() + cmclus->getY()*cmclus->getY() );
 	  double corr_rad = sqrt( tmp_pos.X()*tmp_pos.X() + tmp_pos.Y()*tmp_pos.Y() );
@@ -475,19 +477,37 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
 
   
   //get global phi rotation for each module
+  std::cout << "pos R1" << std::endl;
   m_clustRotation_pos[0] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR1",151,206),clust_r_phi_pos->ProjectionX("cR1_pos",151,206));
+  std::cout << "pos R2" << std::endl;
   m_clustRotation_pos[1] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR2",206,290),clust_r_phi_pos->ProjectionX("cR2_pos",206,290));
+  std::cout << "pos R3" << std::endl;
   m_clustRotation_pos[2] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR3",290,499),clust_r_phi_pos->ProjectionX("cR3_pos",290,499));
 
+  /*
   m_clustRotation_neg[0] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR1",151,206),clust_r_phi_neg->ProjectionX("cR1_neg",151,206));
   m_clustRotation_neg[1] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR2",206,290),clust_r_phi_neg->ProjectionX("cR2_neg",206,290));
   m_clustRotation_neg[2] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR3",290,499),clust_r_phi_neg->ProjectionX("cR3_neg",290,499));
+  */
+
+  std::cout << "neg R1" << std::endl;
+  m_clustRotation_neg[0] = 0.0;
+  std::cout << "neg R2" << std::endl;
+  m_clustRotation_neg[1] = 0.0;
+  std::cout << "neg R3" << std::endl;
+  m_clustRotation_neg[2] = 0.0;
 
 
+
+  std::cout << "getting R peaks" << std::endl;
   //get hit and cluster peaks
   std::vector<double> hit_RPeaks = getRPeaks(hit_r_phi);
+  std::cout << "getting R peaks pos" << std::endl;
   std::vector<double> clust_RPeaks_pos = getRPeaks(clust_r_phi_pos);
+  std::cout << "getting R peaks neg" << std::endl;
   std::vector<double> clust_RPeaks_neg = getRPeaks(clust_r_phi_neg);
+
+  std::cout << "finding gaps pos" << std::endl;
 
   //identify where gaps between module 1&2 and 2&3 are by finding largest distances between peaks
   std::vector<double> clust_RGaps_pos;
@@ -503,9 +523,13 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     R23Gap_pos = std::distance(clust_RGaps_pos.begin(),std::max_element(clust_RGaps_pos.begin()+R12Gap_pos+1,clust_RGaps_pos.end()));
   }
 
+  std::cout << "finding gaps neg" << std::endl;
+
+
   std::vector<double> clust_RGaps_neg;
   int R12Gap_neg = -1;
   int R23Gap_neg = -1;
+  /*
   for(int i=0; i<(int)clust_RPeaks_neg.size()-1; i++) clust_RGaps_neg.push_back(clust_RPeaks_neg[i+1] - clust_RPeaks_neg[i]);
   int tmpGap_neg = std::distance(clust_RGaps_neg.begin(),std::max_element(clust_RGaps_neg.begin(),clust_RGaps_neg.end()));
   if(tmpGap_neg > (int)clust_RGaps_neg.size()/2){
@@ -515,6 +539,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     R12Gap_neg = tmpGap_neg;
     R23Gap_neg = std::distance(clust_RGaps_neg.begin(),std::max_element(clust_RGaps_neg.begin()+R12Gap_neg+1,clust_RGaps_neg.end()));
   }
+*/
+  std::cout << "pos peak matching" << std::endl;
 
   int min_match_pos = 100;
   int min_match_neg = 100;
@@ -538,6 +564,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
     else if(i >= R23Gap_pos+1) hitMatches_pos.push_back(23+1 + i - (R23Gap_pos+1));   
   }
 
+  std::cout << "neg peak matching" << std::endl;
+
   std::vector<int> hitMatches_neg;
   for(int i=0; i<(int)clust_RPeaks_neg.size(); i++){
 
@@ -554,6 +582,8 @@ int PHTpcCentralMembraneMatcher::process_event(PHCompositeNode * /*topNode*/)
   }
 
   
+  std::cout << "starting cluster matching" << std::endl;
+
   // Match reco and truth positions
   //std::map<unsigned int, unsigned int> matched_pair;
   std::vector<std::pair<unsigned int, unsigned int>> matched_pair;

@@ -60,8 +60,8 @@ int PHTpcCentralMembraneClusterizer::InitRun(PHCompositeNode *topNode)
     hxy = new TH2F("hxy","cluster x:y",800,-100,100,800,-80,80);
     hz = new TH1F("hz","cluster z", 220, -2,2);
 
-    hz_pos = new TH1F("hz_pos","cluster z>0", 400, 0,110);
-    hz_neg = new TH1F("hz_neg","cluster z<0", 400, -110,0);
+    hz_pos = new TH1F("hz_pos","cluster z>0", 750, 0,200);
+    hz_neg = new TH1F("hz_neg","cluster z<0", 750, -200,0);
     
     hClustE[0]= new TH1F("hRawClusterEnergy","Cluster Energy Before Merging;E[?]",200,0,2000);
     hClustE[1] = new TH1F("hMatchedClusterEnergy","Pair Cluster Energy After Merging;E[?]",200,0,2000);
@@ -259,14 +259,25 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
 	if(hphi_reco_neg[lay-7]->GetBinContent(phiBin) < (m_moduloThreshold + (mean_z_content_minus/18.0))) aboveThreshold = false;
       }
 
-      if( !aboveThreshold ) continue;
-      
-      if(cluster->getAdc() < _min_adc_value) continue;
-      if( std::abs(z) < _min_z_value) continue;
+      if( !aboveThreshold ){
+	std::cout << "below threshold" << std::endl;
+	continue;
+      }      
+
+      if(cluster->getAdc() < _min_adc_value){
+	std::cout << "adc too low" << std::endl;
+	continue;
+      }
+      if( std::abs(z) < _min_z_value){
+	std::cout << "z too low" << std::endl;
+	continue;
+      }
 
       //require that z be within 1cm of peak in z distributions (separate for each side)
-      if( (z>=0 && std::abs(z - hz_pos->GetBinCenter(hz_pos->GetMaximumBin())) > 1.0) || (z<0 && std::abs(z - hz_neg->GetBinCenter(hz_neg->GetMaximumBin())) > 1.0) ) continue;
-
+      if( (z>=0 && std::abs(z - hz_pos->GetBinCenter(hz_pos->GetMaximumBin())) > 1.0) || (z<0 && std::abs(z - hz_neg->GetBinCenter(hz_neg->GetMaximumBin())) > 1.0) ){
+	std::cout << "z not close enough to peak" << std::endl;
+	continue;
+      }
       //std::cout << "accepted cluster " << m_accepted_clusters << "   parentID: " << cluster->getParentID() << "   pctParentID: " << cluster->getPctParentID() << std::endl;
 
 
@@ -326,9 +337,13 @@ int PHTpcCentralMembraneClusterizer::process_event(PHCompositeNode *topNode)
 
     int layerMatch = -1;
 
+    /*
     int nRowsMatch = 2;
     if(layer[i] >= 39) nRowsMatch = 4;
     else if(layer[i] >= 23) nRowsMatch = 3;
+    */
+
+    int nRowsMatch = 1;
 
     if( pos[i].Z() >= 0 ){
       if(layer[i] == 7){
