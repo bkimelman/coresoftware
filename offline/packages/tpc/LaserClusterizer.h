@@ -26,6 +26,8 @@
 #include <vector>
 #include <string>
 
+class CDBTTree;
+class CDBInterface;
 class LaserClusterContainerv1;
 class LaserClusterv1;
 class PHCompositeNode;
@@ -50,6 +52,7 @@ class LaserClusterizer : public SubsysReco
   LaserClusterizer(const std::string &name = "LaserClusterizer");
   ~LaserClusterizer() override = default;
 
+  int Init(PHCompositeNode *topNode) override;
   int InitRun(PHCompositeNode *topNode) override;
   int process_event(PHCompositeNode *topNode) override;
   int ResetEvent(PHCompositeNode *topNode) override;
@@ -69,6 +72,9 @@ class LaserClusterizer : public SubsysReco
  private:
   int m_event = -1;
   
+  CDBTTree *m_cdbttree{nullptr};
+  CDBInterface *m_cdb{nullptr};
+
   TrkrHitSetContainer *m_hits = nullptr;
   RawHitSetContainer *m_rawhits = nullptr;
   LaserClusterContainerv1 *m_clusterlist = nullptr;

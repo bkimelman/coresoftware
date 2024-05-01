@@ -1,5 +1,8 @@
 #include "LaserClusterizer.h"
 
+#include <cdbobjects/CDBTTree.h>
+#include <ffamodules/CDBInterface.h>
+
 #include <trackbase/LaserCluster.h>
 #include <trackbase/LaserClusterv1.h>
 #include <trackbase/LaserClusterContainer.h>
@@ -73,7 +76,25 @@ LaserClusterizer::LaserClusterizer(const std::string& name)
 
 }
 
+int LaserClusterizer::Init(PHCompositeNode* /*topNode*/)
+{
+  
+  m_cdb = CDBInterface::instance();
+  std::string calibdir = m_cdb->getUrl("DIFFUSE_LASER_T0");
 
+  if(calibdir[0] == '/')
+    {
+      m_cdbttree = new CDBTTree(calibdir);
+      m_cdbttree->LoadCalibrations();
+    }
+  else
+    {
+      std::cout << "LaserClusterizer::Init No T0 calibration file found" << std::endl;
+      exit(1);
+    }
+
+  return Fun4AllReturnCodes::EVENT_OK;
+}
 
 int LaserClusterizer::InitRun(PHCompositeNode *topNode)
 {
@@ -348,12 +369,28 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
 
 	    double phi = layergeom->get_phi(iphi);
 	    //iphi -= phiOffset;
-	    double zdriftlength = layergeom->get_zcenter(it) * m_tGeometry->get_drift_velocity();
+	    //double zdriftlength = layergeom->get_zcenter(it) * m_tGeometry->get_drift_velocity();
+	    
 
 	    float x = r * cos(phi);
 	    float y = r * sin(phi);
-	    float z = m_tdriftmax * m_tGeometry->get_drift_velocity() - zdriftlength;
-	    if (side == 1){
+
+	    double maxDriftLength = 105.0;
+	    double maxDriftTime = maxDriftLength / m_tGeometry->get_drift_velocity();
+	    double T0 = 0.0;
+	    if(side == 0)
+	      {
+		T0 = m_cdbttree->GetSingleDoubleValue("diffuseLaserT0_side0");
+	      }
+	    else
+	      {
+		T0 = m_cdbttree->GetSingleDoubleValue("diffuseLaserT0_side1");
+	      }
+
+	    //float z = m_tdriftmax * m_tGeometry->get_drift_velocity() - zdriftlength;
+
+	    float z = (layergeom->get_zcenter(it) - T0 + maxDriftTime) * m_tGeometry->get_drift_velocity();
+	    if (side == 0){
 	      z = -z;
 	      it = -it;
 	    }
@@ -554,7 +591,7 @@ void LaserClusterizer::calc_cluster_parameter(vector<pointKeyLaser> &clusHits, s
     float coords[3] = {iter->first.get<0>(), iter->first.get<1>(), iter->first.get<2>()};
     std::pair<TrkrDefs::hitkey,TrkrDefs::hitsetkey> spechitkey = iter->second;
 
-    //int side = TpcDefs::getSide(spechitkey.second);
+    int side = TpcDefs::getSide(spechitkey.second);
     //unsigned int sector= TpcDefs::getSectorId(spechitkey.second);
 
     PHG4TpcCylinderGeom *layergeom = m_geom_container->GetLayerCellGeom((int)coords[0]);
@@ -563,10 +600,19 @@ void LaserClusterizer::calc_cluster_parameter(vector<pointKeyLaser> &clusHits, s
 
     double r = layergeom->get_radius();
     double phi = layergeom->get_phi(coords[1]);
-    double t = layergeom->get_zcenter(fabs(coords[2]));
+    double tOrig = layergeom->get_zcenter(fabs(coords[2]));
+    double T0 = 0;
+    if(side == 0){
+      T0 = m_cdbttree->GetSingleDoubleValue("diffuseLaserT0_side0");
+    }else{
+      T0 = m_cdbttree->GetSingleDoubleValue("diffuseLaserT0_side1");
+    }
+    double t = tOrig - T0 + (105.0/m_tGeometry->get_drift_velocity());
 
-    double hitzdriftlength = t * m_tGeometry->get_drift_velocity();
-    double hitZ = m_tdriftmax * m_tGeometry->get_drift_velocity() - hitzdriftlength;
+    //double hitzdriftlength = t * m_tGeometry->get_drift_velocity();
+    //double hitZ = m_tdriftmax * m_tGeometry->get_drift_velocity() - hitzdriftlength;
+
+    double hitZ = t * m_tGeometry->get_drift_velocity();
 
     for(auto iterKey = adcMap.begin(); iterKey != adcMap.end(); ++iterKey){
       if(iterKey->second.first == spechitkey){
@@ -617,11 +663,12 @@ void LaserClusterizer::calc_cluster_parameter(vector<pointKeyLaser> &clusHits, s
   double clusR = rSum / adcSum;
   double clusPhi = phiSum / adcSum;
   double clusT = tSum / adcSum;
-  double zdriftlength = clusT * m_tGeometry->get_drift_velocity();
+  //double zdriftlength = clusT * m_tGeometry->get_drift_velocity();
   
   double clusX = clusR * cos(clusPhi);
   double clusY = clusR * sin(clusPhi);
-  double clusZ = m_tdriftmax * m_tGeometry->get_drift_velocity() - zdriftlength;
+  //double clusZ = m_tdriftmax * m_tGeometry->get_drift_velocity() - zdriftlength;
+  double clusZ = clusT * m_tGeometry->get_drift_velocity();
   if(itSum<0){
     clusZ = -clusZ;
     for(int i=0; i<(int)clus->getNhits(); i++){
