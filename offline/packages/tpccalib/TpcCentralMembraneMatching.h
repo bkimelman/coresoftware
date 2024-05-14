@@ -30,6 +30,7 @@ class TH1D;
 class TH2F;
 class TGraph;
 class TNtuple;
+class TTree;
 class TVector3;
 
 class TpcCentralMembraneMatching : public SubsysReco
@@ -73,6 +74,9 @@ class TpcCentralMembraneMatching : public SubsysReco
 
   //! event processing
   int process_event(PHCompositeNode *topNode) override;
+
+  //! event resetting
+  int ResetEvent(PHCompositeNode *topNode) override;
 
   //! end of process
   int End(PHCompositeNode *topNode) override;
@@ -137,6 +141,7 @@ class TpcCentralMembraneMatching : public SubsysReco
   TH2F *clust_r_phi_neg{};
 
   TNtuple *match_ntup = nullptr;
+  TTree *phiTree = nullptr;
 
   int m_event_index = 0;
 
@@ -238,14 +243,20 @@ class TpcCentralMembraneMatching : public SubsysReco
 
   std::vector<double> m_truth_RPeaks = {22.709, 23.841, 24.973, 26.1049, 27.2369, 28.3689, 29.5009, 30.6328, 31.7648, 32.8968, 34.0288, 35.1607, 36.2927, 37.4247, 38.5566, 39.6886, 42.1706, 44.2119, 46.2533, 48.2947, 50.3361, 52.3774, 54.4188, 56.4602, 59.4605, 61.6546, 63.8487, 66.0428, 68.2369, 70.431, 72.6251, 74.8192};
 
+  std::vector<std::vector<double>> m_truth_phiPeaks = {{0.79563, 0.870629, 0.945628}, {0.756123, 0.829115, 0.902107, 0.975098}, {0.789881, 0.861048, 0.932214, 1.00338}, {0.752631, 0.822131, 0.89163, 0.96113}, {0.785089, 0.85306, 0.921031, 0.989002}, {0.749697, 0.816261, 0.882826, 0.949391, 1.01596}, {0.781031, 0.846298, 0.911564, 0.97683}, {0.747196, 0.811259, 0.875323, 0.939387, 1.00345}, {0.777552, 0.840499, 0.903446, 0.966393}, {0.745039, 0.806946, 0.868853, 0.93076, 0.992667}, {0.774536, 0.835473, 0.896409, 0.957345, 1.01828}, {0.74316, 0.803188, 0.863216, 0.923244, 0.983272}, {0.771896, 0.831073, 0.89025, 0.949426, 1.0086}, {0.741508, 0.799885, 0.858261, 0.916638, 0.975014}, {0.769567, 0.82719, 0.884813, 0.942437, 1.00006}, {0.740045, 0.796958, 0.853871, 0.910785, 0.967698}, {0.754094, 0.801403, 0.848711, 0.896019, 0.943328, 0.990636}, {0.729389, 0.775646, 0.821904, 0.868161, 0.914418, 0.960675, 1.00693}, {0.75108, 0.796379, 0.841678, 0.886977, 0.932276, 0.977575, 1.02287}, {0.727553, 0.771975, 0.816397, 0.860818, 0.90524, 0.949662, 0.994083}, {0.748555, 0.79217, 0.835786, 0.879401, 0.923017, 0.966632, 1.01025}, {0.726004, 0.768876, 0.811748, 0.85462, 0.897493, 0.940365, 0.983237, 1.02611}, {0.746409, 0.788593, 0.830778, 0.872963, 0.915147, 0.957332, 0.999517}, {0.724679, 0.766225, 0.807772, 0.849319, 0.890866, 0.932413, 0.973959, 1.01551}, {0.731893, 0.764401, 0.796908, 0.829416, 0.861924, 0.894431, 0.926939, 0.959447, 0.991954, 1.02446}, {0.715065, 0.746998, 0.778931, 0.810864, 0.842797, 0.87473, 0.906663, 0.938596, 0.970529, 1.00246}, {0.730229, 0.761627, 0.793025, 0.824423, 0.855821, 0.887219, 0.918617, 0.950015, 0.981413, 1.01281}, {0.71403, 0.744929, 0.775827, 0.806726, 0.837624, 0.868523, 0.899421, 0.93032, 0.961218, 0.992117, 1.02302}, {0.728778, 0.759209, 0.789641, 0.820072, 0.850503, 0.880934, 0.911365, 0.941796, 0.972227, 1.00266}, {0.713125, 0.743117, 0.77311, 0.803103, 0.833096, 0.863089, 0.893082, 0.923074, 0.953067, 0.98306, 1.01305}, {0.727503, 0.757084, 0.786665, 0.816246, 0.845827, 0.875408, 0.904989, 0.934571, 0.964152, 0.993733, 1.02331}, {0.712325, 0.741519, 0.770712, 0.799905, 0.829099, 0.858292, 0.887486, 0.916679, 0.945872, 0.975066, 1.00426}};
+
   //@}
 
   bool m_useOnly_nClus2 = false;
 
   int m_nMatchIter = 2;
 
-  double m_clustRotation_pos[3]{};
-  double m_clustRotation_neg[3]{};
+  //  double m_clustRotation_pos[3]{};
+  //  double m_clustRotation_neg[3]{};
+  
+  double m_clustRotation_pos{0.0};
+  double m_clustRotation_neg{0.0};
+
 
   std::vector<double> m_clust_RPeaks_pos;
   std::vector<double> m_clust_RPeaks_neg;
@@ -253,9 +264,15 @@ class TpcCentralMembraneMatching : public SubsysReco
   double m_global_RShift_pos{};
   double m_global_RShift_neg{};
 
+  double m_nPhiBins[32] = {53, 59, 65, 71, 76, 82, 87, 93, 98, 103, 109, 114, 119, 124, 129, 134, 144, 152, 160, 167, 174, 181, 186, 192, 198, 201, 204, 206, 207, 206, 205, 202};
+  TH1D *m_phi_row_pos[32];
+  TH1D *m_phi_row_neg[32];
+
   double getPhiRotation_smoothed(TH1D *hitHist, TH1D *clustHist);
 
   std::vector<int> doGlobalRMatching(TH2F *r_phi, bool pos);
+
+  double doGlobalPhiMatching(TH2F *r_phi, std::vector<int> hitMatches, bool pos);
 
   int getClusterRMatch(std::vector<int> hitMatches, std::vector<double> clusterPeaks, double clusterR);
 };

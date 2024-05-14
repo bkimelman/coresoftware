@@ -26,6 +26,7 @@
 #include <TNtuple.h>
 #include <TString.h>
 #include <TStyle.h>
+#include <TTree.h>
 #include <TVector3.h>
 
 #include <boost/format.hpp>
@@ -485,6 +486,273 @@ std::vector<int> TpcCentralMembraneMatching::doGlobalRMatching(TH2F* r_phi, bool
   return hitMatches;
 }
 
+double TpcCentralMembraneMatching::doGlobalPhiMatching(TH2F* r_phi, std::vector<int> hitMatches, bool pos)
+{
+  
+  std::cout << "starting global phi matching" << std::endl;
+
+  double threshold[32] = {0.0749989, 0.0729917, 0.0711665, 0.0694996, 0.0679712, 0.0665648, 0.0652663, 0.0640638, 0.062947, 0.0619071, 0.0609364, 0.0600281, 0.0591765, 0.0583765, 0.0576234, 0.0569132, 0.0473084, 0.0462573, 0.045299, 0.0444217, 0.0436155, 0.0428722, 0.0421847, 0.0415468, 0.0325076, 0.0319331, 0.031398, 0.0308985, 0.0304311, 0.0299928, 0.029581, 0.0291934};
+
+
+  for(int i=1; i<=r_phi->GetNbinsX(); i++){
+    for(int j=1; j<=r_phi->GetNbinsY(); j++){
+      if(r_phi->GetBinContent(i,j) <= 0) continue;
+      int row = -1;
+      if(pos){
+	row = getClusterRMatch(hitMatches, m_clust_RPeaks_pos, r_phi->GetYaxis()->GetBinCenter(j));
+      }else{
+	row = getClusterRMatch(hitMatches, m_clust_RPeaks_neg, r_phi->GetYaxis()->GetBinCenter(j));
+      }
+      if(row == -1) continue;
+
+      double phiMod = r_phi->GetXaxis()->GetBinCenter(i);
+      while(phiMod < 2*M_PI/9 || phiMod > 3*M_PI/9){
+	if(phiMod < 2*M_PI/9){
+	  phiMod += M_PI/9;
+	}
+	if(phiMod > 3*M_PI/9){
+	  phiMod -= M_PI/9;
+	}
+      }// end while loop
+      
+      if(pos){
+	m_phi_row_pos[row]->Fill(phiMod);
+      }
+      else{
+	m_phi_row_neg[row]->Fill(phiMod);
+      }
+    }
+  }
+  
+  std::cout << "histograms filled" << std::endl;
+
+  TH1D *hPhi[32];
+  for(int i=0; i<32; i++){
+    if(pos){
+      hPhi[i] = (TH1D*)m_phi_row_pos[i]->Clone();
+    }else{
+      hPhi[i] = (TH1D*)m_phi_row_neg[i]->Clone();
+    }
+  }
+
+  std::vector<double> globalPhiRotation;
+  std::vector<std::vector<double>> finalPhiPeaks(32);
+  
+  for(int i=0; i<32; i++){
+
+    std::cout << "working on row " << i << std::endl;
+    
+    if(hPhi[i]->GetEntries() < 20){
+      std::cout << "not enough entries in phi histogram, only " << hPhi[i]->GetEntries() << std::endl;
+      continue;
+    }
+    
+    std::cout << "histogram for row " << i << " has " << hPhi[i]->GetEntries() << " entries" << std::endl;
+
+
+    std::vector<double> phiPeaks;
+    std::vector<double> finalPhiPeaks_tmp;
+    std::vector<std::vector<int>> groupPhi;
+
+    
+    for(int j=1; j<=hPhi[i]->GetNbinsX(); j++){
+      if(hPhi[i]->GetBinContent(j) > 0){
+	phiPeaks.push_back(hPhi[i]->GetBinCenter(j));
+      }
+    }
+
+  
+    if(phiPeaks.size() < 2 ){
+      std::cout << "fewer than 2 peaks only " << phiPeaks.size() << " were found:" << std::endl;
+      for(double peak : phiPeaks)
+	{
+	  std::cout << "peak " << peak << std::endl;
+	}
+      continue;
+    }
+    
+    for(int j = 0; j < (int) phiPeaks.size(); j++)
+      {
+	std::vector<int> tmpPhi;
+	tmpPhi.push_back(j);
+
+	bool closePeak = false;
+	int currentPeak = -1;
+
+	for (int k = 0; k < (int) finalPhiPeaks_tmp.size(); k++)
+	  {
+	    for (int l = 0; l < (int) groupPhi[k].size(); l++)
+	      {
+		if (fabs(phiPeaks[j] - phiPeaks[groupPhi[k][l]]) <= 0.5*threshold[i] || fabs(phiPeaks[j] - finalPhiPeaks_tmp[k]) <= 0.5*threshold[i])
+		  {
+
+		    closePeak = true;
+		    currentPeak = k;
+		    break;
+		  }
+	      }
+
+	    if (closePeak)
+	      {
+		break;
+	      }
+	  }
+
+
+	if (!closePeak)
+	  {
+	    finalPhiPeaks_tmp.push_back(phiPeaks[j]);
+	    groupPhi.push_back(tmpPhi);
+	    tmpPhi.clear();
+	    continue;
+	  }
+
+	groupPhi[currentPeak].push_back(j);
+	double num = 0.0;
+	double den = 0.0;
+	for (int k : groupPhi[currentPeak])
+	  {
+	    double phiHeight = hPhi[i]->GetBinContent(hPhi[i]->FindBin(phiPeaks[k]));
+	    num += phiPeaks[k] * phiHeight;
+	    den += phiHeight;
+	  }
+
+	finalPhiPeaks_tmp[currentPeak] = num / den;
+      }
+
+
+    if (Verbosity())
+      {
+	std::cout << "finalPhiPeaks: {";
+	for (int j = 0; j < (int) finalPhiPeaks_tmp.size() - 1; j++)
+	  {
+	    finalPhiPeaks[i].push_back(finalPhiPeaks_tmp[j]);
+	    std::cout << finalPhiPeaks_tmp[j] << ", ";
+	  }
+	std::cout << finalPhiPeaks_tmp[finalPhiPeaks_tmp.size() - 1] << "}" << std::endl;
+
+      }
+  }//end loop over all rows
+
+  int row_mostPeaks = -1;
+  double mostPeaks = 0;
+  for(int i=0; i<32; i++)
+    {
+      if(finalPhiPeaks[i].size() > mostPeaks){
+	mostPeaks = finalPhiPeaks[i].size();
+	row_mostPeaks = i;
+      }
+    }
+
+  int truthMiddle = (int)round((m_truth_phiPeaks[row_mostPeaks].size()/2.0));
+
+  
+  int middle_peak = -1;
+  double closestPeak = 100000000.0;
+  for (int i = 0; i < (int) finalPhiPeaks[row_mostPeaks].size(); i++)
+    {
+      if (fabs(m_truth_phiPeaks[row_mostPeaks][truthMiddle] - finalPhiPeaks[row_mostPeaks][i]) < closestPeak)
+	{
+	  closestPeak = fabs(m_truth_phiPeaks[row_mostPeaks][truthMiddle] - finalPhiPeaks[row_mostPeaks][i]);
+	  middle_peak = i;
+	}
+    }
+
+  double middle_NN = 100000000.0;
+  int middle_match = -1;
+  for (int i = 0; i < (int) m_truth_phiPeaks[row_mostPeaks].size(); i++)
+    {
+      if (fabs(finalPhiPeaks[row_mostPeaks][middle_peak] - m_truth_phiPeaks[row_mostPeaks][i]) < middle_NN)
+	{
+	  middle_NN = fabs(finalPhiPeaks[row_mostPeaks][middle_peak] - m_truth_phiPeaks[row_mostPeaks][i]);
+	  middle_match = i;
+	}
+    }
+  
+  double bestSum = 100000000.0;
+  int match = 0;
+  
+  int minRange = middle_match - 3;
+  if(minRange < 0) minRange = 0;
+  
+  int maxRange = middle_match + 3;
+  if(maxRange > (int)m_truth_phiPeaks[row_mostPeaks].size()-1) maxRange = (int)m_truth_phiPeaks[row_mostPeaks].size()-1;
+  
+  std::vector<double> matches;
+  std::vector<std::vector<std::vector<int>>> NNMatches;
+
+  for(int i = minRange; i <= maxRange; i++){
+    
+      double sum = 0.0;
+      double move = m_truth_phiPeaks[row_mostPeaks][i] - finalPhiPeaks[row_mostPeaks][middle_peak];
+      std::vector<std::vector<int>> rowMatches;
+      for (int j=0; j<32; j++)
+	{
+	  std::vector<int> phiMatches;
+	  for (double peak : finalPhiPeaks[j])
+	    {
+	      int minMatch = 0;
+	      double minResidual = 100000.0;
+	      for (int k = 0; k < (int) m_truth_phiPeaks[j].size(); k++)
+		{
+		  if (fabs(peak + move - m_truth_phiPeaks[j][k]) < minResidual)
+		    {
+		      minResidual = fabs(peak + move - m_truth_phiPeaks[j][k]);
+		      minMatch = k;
+		      if (minResidual < 0.5*threshold[j])
+			{
+			  break;
+			}
+		    }
+		}
+	      sum += fabs(peak + move - m_truth_phiPeaks[j][minMatch]);
+	      phiMatches.push_back(minMatch);
+	      //tmpMatches.push_back(minMatch);
+	    }
+	  rowMatches.push_back(phiMatches);
+	}
+      NNMatches.push_back(rowMatches);
+      matches.push_back(sum);
+      if (sum < bestSum)
+	{
+	  bestSum = sum;
+	  match = i - minRange;
+	}
+    }
+
+
+
+
+  if (Verbosity())
+    {
+      std::cout << "best total residual = " << bestSum << "   at middle match " << match << std::endl;
+      for (int i = 0; i < (int) matches.size(); i++)
+	{
+	  std::cout << "total phi Residual match=" << i << "   : " << matches[i] << std::endl;
+	}
+    }
+  
+  
+  if (Verbosity())
+    {
+      for (int i = 0; i < (int) NNMatches.size(); i++)
+	{
+	  double move = m_truth_phiPeaks[row_mostPeaks][i + minRange] - finalPhiPeaks[row_mostPeaks][middle_peak];
+	  for (int j = 0; j < (int) NNMatches[i].size(); j++)
+	    {
+	      for(int k=0; k < (int) NNMatches[i][j].size(); k++)
+		{
+		  std::cout << "shift " << i + minRange << "   row " << j << "   phi index " << k << "   recoPhi=" << finalPhiPeaks[j][k] << "   shifted Phi=" << finalPhiPeaks[j][k] + move << "   matchIndex=" << NNMatches[i][j][k] << "   truth Phi=" << m_truth_phiPeaks[j][NNMatches[i][j][k]] << "   residual=" << finalPhiPeaks[j][k] + move - m_truth_phiPeaks[j][NNMatches[i][j][k]] << std::endl;
+		}
+	    }
+	}
+    }
+  
+  double avgRotation = m_truth_phiPeaks[row_mostPeaks][match + minRange] - finalPhiPeaks[row_mostPeaks][middle_peak];
+  return avgRotation;
+  
+}
+
 int TpcCentralMembraneMatching::getClusterRMatch(std::vector<int> hitMatches, std::vector<double> clusterPeaks, double clusterR)
 {
   double closestDist = 100.;
@@ -548,6 +816,13 @@ int TpcCentralMembraneMatching::InitRun(PHCompositeNode* topNode)
 
     m_debugfile.reset(new TFile(m_debugfilename.c_str(), "RECREATE"));
     match_ntup = new TNtuple("match_ntup", "Match NTuple", "event:truthR:truthPhi:recoR:recoPhi:recoZ:nhits:r1:phi1:e1:layer1:r2:phi2:e2:layer2");
+    phiTree = new TTree("phiTree","phiTree");
+    for(int i=0; i<32; i++){
+      m_phi_row_pos[i] = new TH1D(Form("phi_row%d_pos",i),"Row %d Z>0;#phi [rad]",m_nPhiBins[i],2*M_PI/9,3*M_PI/9);
+      m_phi_row_neg[i] = new TH1D(Form("phi_row%d_neg",i),"Row %d Z<0;#phi [rad]",m_nPhiBins[i],2*M_PI/9,3*M_PI/9);
+      phiTree->Branch(Form("phi_row%d_pos",i),&m_phi_row_pos[i]);
+      phiTree->Branch(Form("phi_row%d_neg",i),&m_phi_row_neg[i]);
+    }
   }
 
   hit_r_phi = new TH2F("hit_r_phi", "hit r vs #phi;#phi (rad); r (cm)", 360, -M_PI, M_PI, 500, 0, 100);
@@ -697,8 +972,6 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* /*topNode*/)
   // reset output distortion correction container histograms
   for (const auto& harray : {m_dcc_out->m_hDRint, m_dcc_out->m_hDPint, m_dcc_out->m_hDZint, m_dcc_out->m_hentries})
   {
-    clust_r_phi_pos->Reset();
-    clust_r_phi_neg->Reset();
 
     if (!m_corrected_CMcluster_map || m_corrected_CMcluster_map->size() < 100)
     {
@@ -805,6 +1078,7 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* /*topNode*/)
   }
 
   // get global phi rotation for each module
+  /*
   m_clustRotation_pos[0] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR1", 151, 206), clust_r_phi_pos->ProjectionX("cR1_pos", 151, 206));
   m_clustRotation_pos[1] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR2", 206, 290), clust_r_phi_pos->ProjectionX("cR2_pos", 206, 290));
   m_clustRotation_pos[2] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR3", 290, 499), clust_r_phi_pos->ProjectionX("cR3_pos", 290, 499));
@@ -812,6 +1086,7 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* /*topNode*/)
   m_clustRotation_neg[0] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR1", 151, 206), clust_r_phi_neg->ProjectionX("cR1_neg", 151, 206));
   m_clustRotation_neg[1] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR2", 206, 290), clust_r_phi_neg->ProjectionX("cR2_neg", 206, 290));
   m_clustRotation_neg[2] = getPhiRotation_smoothed(hit_r_phi->ProjectionX("hR3", 290, 499), clust_r_phi_neg->ProjectionX("cR3_neg", 290, 499));
+  */
 
   // get hit and cluster peaks
   /*
@@ -944,7 +1219,12 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* /*topNode*/)
   */
 
   std::vector<int> hitMatches_pos = doGlobalRMatching(clust_r_phi_pos, true);
+  m_clustRotation_pos = doGlobalPhiMatching(clust_r_phi_pos, hitMatches_pos, true);
+
   std::vector<int> hitMatches_neg = doGlobalRMatching(clust_r_phi_neg, false);
+  m_clustRotation_neg = doGlobalPhiMatching(clust_r_phi_neg, hitMatches_neg, false);
+
+  phiTree->Fill();
 
   if (Verbosity())
   {
@@ -1033,11 +1313,13 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* /*topNode*/)
         {
           if (z2 > 0)
           {
-            phi2 -= m_clustRotation_pos[angleR];
+            //phi2 -= m_clustRotation_pos[angleR];
+	    phi2 += m_clustRotation_pos;
           }
           else
           {
-            phi2 -= m_clustRotation_neg[angleR];
+            //phi2 -= m_clustRotation_neg[angleR];
+	    phi2 += m_clustRotation_neg;
           }
         }
 
@@ -1322,6 +1604,7 @@ int TpcCentralMembraneMatching::End(PHCompositeNode* /*topNode*/)
     m_debugfile->cd();
 
     match_ntup->Write();
+    phiTree->Write();
     hit_r_phi->Write();
     clust_r_phi_pos->Write();
     clust_r_phi_neg->Write();
@@ -1331,6 +1614,22 @@ int TpcCentralMembraneMatching::End(PHCompositeNode* /*topNode*/)
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
+
+int TpcCentralMembraneMatching::ResetEvent(PHCompositeNode* /*topNode*/)
+{
+  
+  clust_r_phi_pos->Reset();
+  clust_r_phi_neg->Reset();
+
+  for(int i=0; i<32; i++){
+    m_phi_row_pos[i]->Reset();
+    m_phi_row_neg[i]->Reset();
+  }
+  
+  return Fun4AllReturnCodes::EVENT_OK;
+
+}
+
 
 //____________________________________________________________________________..
 
