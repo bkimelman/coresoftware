@@ -634,90 +634,90 @@ double TpcCentralMembraneMatching::doGlobalPhiMatching(TH2F* r_phi, std::vector<
       }
   }//end loop over all rows
 
-  int row_mostPeaks = -1;
-  double mostPeaks = 0;
-  for(int i=0; i<32; i++)
-    {
-      if(finalPhiPeaks[i].size() > mostPeaks){
-	mostPeaks = finalPhiPeaks[i].size();
-	row_mostPeaks = i;
-      }
-    }
 
-  int truthMiddle = (int)round((m_truth_phiPeaks[row_mostPeaks].size()/2.0));
-
-  
-  int middle_peak = -1;
-  double closestPeak = 100000000.0;
-  for (int i = 0; i < (int) finalPhiPeaks[row_mostPeaks].size(); i++)
-    {
-      if (fabs(m_truth_phiPeaks[row_mostPeaks][truthMiddle] - finalPhiPeaks[row_mostPeaks][i]) < closestPeak)
-	{
-	  closestPeak = fabs(m_truth_phiPeaks[row_mostPeaks][truthMiddle] - finalPhiPeaks[row_mostPeaks][i]);
-	  middle_peak = i;
-	}
-    }
-
-  double middle_NN = 100000000.0;
-  int middle_match = -1;
-  for (int i = 0; i < (int) m_truth_phiPeaks[row_mostPeaks].size(); i++)
-    {
-      if (fabs(finalPhiPeaks[row_mostPeaks][middle_peak] - m_truth_phiPeaks[row_mostPeaks][i]) < middle_NN)
-	{
-	  middle_NN = fabs(finalPhiPeaks[row_mostPeaks][middle_peak] - m_truth_phiPeaks[row_mostPeaks][i]);
-	  middle_match = i;
-	}
-    }
-  
-  double bestSum = 100000000.0;
-  int match = 0;
-  
-  int minRange = middle_match - 3;
-  if(minRange < 0) minRange = 0;
-  
-  int maxRange = middle_match + 3;
-  if(maxRange > (int)m_truth_phiPeaks[row_mostPeaks].size()-1) maxRange = (int)m_truth_phiPeaks[row_mostPeaks].size()-1;
-  
-  std::vector<double> matches;
   std::vector<std::vector<std::vector<int>>> NNMatches;
-
-  for(int i = minRange; i <= maxRange; i++){
-    
-      double sum = 0.0;
-      double move = m_truth_phiPeaks[row_mostPeaks][i] - finalPhiPeaks[row_mostPeaks][middle_peak];
-      std::vector<std::vector<int>> rowMatches;
-      for (int j=0; j<32; j++)
+  std::vector<int> middlePeaks;
+  std::vector<double> rowSum;
+  std::vector<int> rowMatches;
+  std::vector<int> rowMinRange;
+  for (int i=0; i<32; i++)
+    {
+      int truthMiddle = (int)round((m_truth_phiPeaks[i].size()/2.0));
+      
+      
+      int middle_peak = -1;
+      double closestPeak = 100000000.0;
+      for (int j = 0; j < (int) finalPhiPeaks[i].size(); j++)
 	{
-	  std::vector<int> phiMatches;
-	  for (double peak : finalPhiPeaks[j])
+	  if (fabs(m_truth_phiPeaks[i][truthMiddle] - finalPhiPeaks[i][j]) < closestPeak)
 	    {
-	      int minMatch = 0;
-	      double minResidual = 100000.0;
-	      for (int k = 0; k < (int) m_truth_phiPeaks[j].size(); k++)
-		{
-		  if (fabs(peak + move - m_truth_phiPeaks[j][k]) < minResidual)
-		    {
-		      minResidual = fabs(peak + move - m_truth_phiPeaks[j][k]);
-		      minMatch = k;
-		      if (minResidual < 0.5*threshold[j])
-			{
-			  break;
-			}
-		    }
-		}
-	      sum += fabs(peak + move - m_truth_phiPeaks[j][minMatch]);
-	      phiMatches.push_back(minMatch);
-	      //tmpMatches.push_back(minMatch);
+	      closestPeak = fabs(m_truth_phiPeaks[i][truthMiddle] - finalPhiPeaks[i][j]);
+	      middle_peak = j;
 	    }
-	  rowMatches.push_back(phiMatches);
 	}
-      NNMatches.push_back(rowMatches);
-      matches.push_back(sum);
-      if (sum < bestSum)
+      middlePeaks.push_back(middle_peak);
+
+      double middle_NN = 100000000.0;
+      int middle_match = -1;
+      for (int j = 0; j < (int) m_truth_phiPeaks[i].size(); j++)
 	{
-	  bestSum = sum;
-	  match = i - minRange;
+	  if (fabs(finalPhiPeaks[i][middle_peak] - m_truth_phiPeaks[i][j]) < middle_NN)
+	    {
+	      middle_NN = fabs(finalPhiPeaks[i][middle_peak] - m_truth_phiPeaks[i][j]);
+	      middle_match = j;
+	    }
 	}
+      
+      double bestSum = 100000000.0;
+      int match = -1;
+      
+      int minRange = middle_match - 3;
+      if(minRange < 0) minRange = 0;
+      
+      rowMinRange.push_back(minRange);
+
+      int maxRange = middle_match + 3;
+      if(maxRange > (int)m_truth_phiPeaks[i].size()-1) maxRange = (int)m_truth_phiPeaks[i].size()-1;
+      
+      std::vector<double> matches;
+      std::vector<std::vector<int>> iterMatches;
+      
+      for(int j = minRange; j <= maxRange; j++){
+	
+	double sum = 0.0;
+	double move = m_truth_phiPeaks[i][j] - finalPhiPeaks[i][middle_peak];
+	std::vector<int> phiMatches;
+	for (double peak : finalPhiPeaks[i])
+	  {
+	    int minMatch = 0;
+	    double minResidual = 100000.0;
+	    for (int k = 0; k < (int) m_truth_phiPeaks[i].size(); k++)
+	      {
+		if (fabs(peak + move - m_truth_phiPeaks[i][k]) < minResidual)
+		  {
+		    minResidual = fabs(peak + move - m_truth_phiPeaks[i][k]);
+		    minMatch = k;
+		    if (minResidual < 0.5*threshold[i])
+		      {
+			break;
+		      }
+		  }
+	      }
+	    sum += fabs(peak + move - m_truth_phiPeaks[i][minMatch]);
+	    phiMatches.push_back(minMatch);
+	    //tmpMatches.push_back(minMatch);
+	  }
+	iterMatches.push_back(phiMatches);
+	matches.push_back(sum);
+	if (sum < bestSum)
+	  {
+	    bestSum = sum;
+	    match = j - minRange;
+	  }	
+      }
+      rowSum.push_back(bestSum);
+      rowMatches.push_back(match);
+      NNMatches.push_back(iterMatches);
     }
 
 
@@ -725,10 +725,10 @@ double TpcCentralMembraneMatching::doGlobalPhiMatching(TH2F* r_phi, std::vector<
 
   if (Verbosity())
     {
-      std::cout << "best total residual = " << bestSum << "   at middle match " << match << std::endl;
-      for (int i = 0; i < (int) matches.size(); i++)
+      for (int i = 0; i < (int) rowMatches.size(); i++)
 	{
-	  std::cout << "total phi Residual match=" << i << "   : " << matches[i] << std::endl;
+	  std::cout << "best total residual = " << rowSum[i] << "   at middle match " << rowMatches[i] << std::endl;
+	  std::cout << "total phi Residual match=" << i << "   : " << rowMatches[i] << std::endl;
 	}
     }
   
@@ -737,19 +737,25 @@ double TpcCentralMembraneMatching::doGlobalPhiMatching(TH2F* r_phi, std::vector<
     {
       for (int i = 0; i < (int) NNMatches.size(); i++)
 	{
-	  double move = m_truth_phiPeaks[row_mostPeaks][i + minRange] - finalPhiPeaks[row_mostPeaks][middle_peak];
 	  for (int j = 0; j < (int) NNMatches[i].size(); j++)
 	    {
+	      double move = m_truth_phiPeaks[i][j + rowMinRange[i]] - finalPhiPeaks[i][middlePeaks[i]];
 	      for(int k=0; k < (int) NNMatches[i][j].size(); k++)
 		{
-		  std::cout << "shift " << i + minRange << "   row " << j << "   phi index " << k << "   recoPhi=" << finalPhiPeaks[j][k] << "   shifted Phi=" << finalPhiPeaks[j][k] + move << "   matchIndex=" << NNMatches[i][j][k] << "   truth Phi=" << m_truth_phiPeaks[j][NNMatches[i][j][k]] << "   residual=" << finalPhiPeaks[j][k] + move - m_truth_phiPeaks[j][NNMatches[i][j][k]] << std::endl;
+		  std::cout << "shift " << j + rowMinRange[i] << "   row " << i << "   phi index " << k << "   recoPhi=" << finalPhiPeaks[i][k] << "   shifted Phi=" << finalPhiPeaks[i][k] + move << "   matchIndex=" << NNMatches[i][j][k] << "   truth Phi=" << m_truth_phiPeaks[i][NNMatches[i][j][k]] << "   residual=" << finalPhiPeaks[i][k] + move - m_truth_phiPeaks[i][NNMatches[i][j][k]] << std::endl;
 		}
 	    }
 	}
     }
   
-  double avgRotation = m_truth_phiPeaks[row_mostPeaks][match + minRange] - finalPhiPeaks[row_mostPeaks][middle_peak];
-  return avgRotation;
+  double avgRotation = 0.0;
+  int nRows = 0;
+  for(int i = 0; i<32; i++)
+    {
+      avgRotation += m_truth_phiPeaks[i][rowMatches[i] + rowMinRange[i]] - finalPhiPeaks[i][middlePeaks[i]];
+      if(finalPhiPeaks[i].size() > 0) nRows++;
+    }
+  return avgRotation/nRows;
   
 }
 

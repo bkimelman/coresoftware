@@ -103,7 +103,8 @@ class LaserClusterizer : public SubsysReco
   double time_all = 0;
 
   LaserClusterv1 *m_currentCluster = nullptr;
-  std::vector<LaserClusterv1 *> m_eventClusters;
+  LaserClusterContainerv1 *m_eventClusters = nullptr;
+  //std::vector<LaserClusterv1 *> m_eventClusters;
   std::vector<float> m_currentHit;
   std::vector<float> m_currentHit_hardware;
 

@@ -411,7 +411,7 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
 
   if (m_debug)
   {
-    m_nClus = (int) m_eventClusters.size();
+    m_nClus = (int) m_eventClusters->size();
   }
   t_all->stop();
 
@@ -421,6 +421,8 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
     time_clus = t_clus->get_accumulated_time() / 1000.;
     time_erase = t_erase->get_accumulated_time() / 1000.;
     time_all = t_all->get_accumulated_time() / 1000.;
+
+    m_eventClusters = m_clusterlist;
 
     m_clusterTree->Fill();
   }
@@ -445,8 +447,8 @@ int LaserClusterizer::ResetEvent(PHCompositeNode * /*topNode*/)
   {
     m_tHist_0->Reset();
     m_tHist_1->Reset();
-
-    m_eventClusters.clear();
+    
+    //m_eventClusters.clear();
   }
 
   return Fun4AllReturnCodes::EVENT_OK;
@@ -571,7 +573,7 @@ void LaserClusterizer::calc_cluster_parameter(std::vector<pointKeyLaser> &clusHi
   if (m_debug)
   {
     m_currentCluster = (LaserClusterv1 *) clus->CloneMe();
-    m_eventClusters.push_back((LaserClusterv1 *) m_currentCluster->CloneMe());
+    //m_eventClusters.push_back((LaserClusterv1 *) m_currentCluster->CloneMe());
   }
 }
 
