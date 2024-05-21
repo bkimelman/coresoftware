@@ -211,22 +211,23 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
     {
       TrkrHitSet *hitset = hitsetitr->second;
       int side = TpcDefs::getSide(hitsetitr->first);
-      PHG4TpcCylinderGeom *layergeom = m_geom_container->GetLayerCellGeom(TrkrDefs::getLayer(hitsetitr->first));
+      //PHG4TpcCylinderGeom *layergeom = m_geom_container->GetLayerCellGeom(TrkrDefs::getLayer(hitsetitr->first));
 
       TrkrHitSet::ConstRange hitrangei = hitset->getHits();
       for (TrkrHitSet::ConstIterator hitr = hitrangei.first;
            hitr != hitrangei.second;
            ++hitr)
       {
+
         int it = TpcDefs::getTBin(hitr->first);
-        double t = layergeom->get_zcenter(it);
+        //double t = layergeom->get_zcenter(it);
 
         if (side == 0)
         {
           m_itHist_0->Fill(it);
           if (m_debug)
           {
-            m_tHist_0->Fill(t);
+            //m_tHist_0->Fill(t);
           }
         }
         else
@@ -234,8 +235,8 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
           m_itHist_1->Fill(it);
           if (m_debug)
           {
-            m_tHist_1->Fill(t);
-          }
+            //m_tHist_1->Fill(t);
+	  }
         }
       }
     }
@@ -264,6 +265,10 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
 
     if (itMaxContent_0 / itMeanContent_0 < 1.5 || itMaxContent_1 / itMeanContent_1 < 1.5)
     {
+      if(Verbosity())
+	{
+	  std::cout << PHWHERE << "no laser peak found in event" << std::endl;
+	}
       return Fun4AllReturnCodes::ABORTEVENT;
     }
 
@@ -445,8 +450,8 @@ int LaserClusterizer::ResetEvent(PHCompositeNode * /*topNode*/)
 
   if (m_debug)
   {
-    m_tHist_0->Reset();
-    m_tHist_1->Reset();
+    //m_tHist_0->Reset();
+    //m_tHist_1->Reset();
     
     //m_eventClusters.clear();
   }
