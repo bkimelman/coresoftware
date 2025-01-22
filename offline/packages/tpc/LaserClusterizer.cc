@@ -502,17 +502,17 @@ int LaserClusterizer::process_event(PHCompositeNode *topNode)
 
     std::vector<pointKeyLaser> clusHitsLaminations;
 
-    t_search->restart();
+    //t_search->restart();
     rtreeLaminations.query(bgi::intersects(box(point(layerMin, iphi - 2, it - 5), point(layerMax, iphi + 2, it + 5))), std::back_inserter(clusHitsLaminations));
-    t_search->stop();
+    //t_search->stop();
 
-    t_clus->restart();
+    //t_clus->restart();
     calc_cluster_parameter(clusHitsLaminations, adcMapLaminations,true);
-    t_clus->stop();
+    //t_clus->stop();
 
-    t_erase->restart();
+    //t_erase->restart();
     remove_hits(clusHitsLaminations, rtreeLaminations, adcMapLaminations);
-    t_erase->stop();
+    //t_erase->stop();
 
     clusHitsLaminations.clear();
   }
