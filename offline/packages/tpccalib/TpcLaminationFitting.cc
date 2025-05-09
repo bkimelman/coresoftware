@@ -555,21 +555,11 @@ int TpcLaminationFitting::InterpolatePhiDistortions(TH2 *simPhiDistortion[2])
           phi -= 2 * M_PI;
         }
         int phiBin = phiDistortionLamination[s]->GetXaxis()->FindBin(phi);
-        //m_fLamination[l][s]->SetParameter(0, m_fLamination[l][s]->GetParameter(0) - m_laminationCenter[l][s]);
 	m_fLamination[l][s]->SetParameter(3, m_laminationOffset[l][s]);
-	/*
-	if(s==0)
-	{
-	  m_fLamination[l][s]->SetParameter(3, 0.0);
-	}
-        else
-	{
-	  m_fLamination[l][s]->SetParameter(3, 0.0);
-	}
-	*/
-	//m_fLamination[l][s]->SetParameter(3, 0.0);
-        double phiDistortion = R * m_fLamination[l][s]->Integral(phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i), phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1)) / (phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1) - phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i));
-        //m_fLamination[l][s]->SetParameter(0, m_fLamination[l][s]->GetParameter(0) + m_laminationCenter[l][s]);
+
+	//originally stored as R * dPhi, but not anymore
+        //double phiDistortion = R * m_fLamination[l][s]->Integral(phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i), phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1)) / (phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1) - phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i));
+	double phiDistortion = m_fLamination[l][s]->Integral(phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i), phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1)) / (phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i + 1) - phiDistortionLamination[s]->GetYaxis()->GetBinLowEdge(i));
         m_fLamination[l][s]->SetParameter(3, m_laminationCenter[l][s]);
         phiDistortionLamination[s]->SetBinContent(phiBin, i, phiDistortion);
       }
@@ -759,6 +749,7 @@ int TpcLaminationFitting::End(PHCompositeNode * /*topNode*/)
     */
     m_dcc_out->m_hDRint[s] = (TH2 *) simRDistortion[s]->Clone();
     m_dcc_out->m_hDRint[s]->SetName((boost::format("hIntDistortionR%s") %(s == 0 ? "_negz" : "_posz")).str().c_str());
+    m_dcc_out->m_hDRint[s]->SetTitle((boost::format("hIntDistortionR%s") % (s == 0 ? "_negz" : "_posz")).str().c_str());
     m_dcc_out->m_hDRint[s]->Multiply(scaleFactorMap[s]);
   }
 

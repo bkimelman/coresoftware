@@ -1,4 +1,3 @@
-
 /**
  * \file TpcCentralMembraneMatching.cc
  * \brief match reconstructed CM clusters to CM pads, calculate differences, store on the node tree and compute distortion reconstruction maps
@@ -1950,7 +1949,7 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     // calculate residuals (cluster - truth)
     const double dr = reco_pos[reco_index].Perp() - m_truth_pos[i].Perp();
     const double dphi = delta_phi(reco_pos[reco_index].Phi() - m_truth_pos[i].Phi());
-    const double rdphi = reco_pos[reco_index].Perp() * dphi;
+    //const double rdphi = reco_pos[reco_index].Perp() * dphi;
     //currently, we cannot get any z distortion since we don't know when the laser actually flashed
     //so the distortion is set to 0 for now
     //const double dz = reco_pos[reco_index].z() - m_truth_pos[i].z();
@@ -1965,7 +1964,9 @@ int TpcCentralMembraneMatching::process_event(PHCompositeNode* topNode)
     for (const auto& dcc : {m_dcc_out, m_dcc_out_aggregated.get()})
     {
       static_cast<TH2*>(dcc->m_hDRint[side])->Fill(clus_phi, clus_r, dr);
-      static_cast<TH2*>(dcc->m_hDPint[side])->Fill(clus_phi, clus_r, rdphi);
+      //originally phi distortion stored as r * dPhi, but changed now to just dPhi
+      //static_cast<TH2*>(dcc->m_hDPint[side])->Fill(clus_phi, clus_r, rdphi);
+      static_cast<TH2*>(dcc->m_hDPint[side])->Fill(clus_phi, clus_r, dphi);
       static_cast<TH2*>(dcc->m_hDZint[side])->Fill(clus_phi, clus_r, dz);
       static_cast<TH2*>(dcc->m_hentries[side])->Fill(clus_phi, clus_r);
     }
@@ -2209,7 +2210,9 @@ int TpcCentralMembraneMatching::GetNodes(PHCompositeNode* topNode)
     std::cout << "TpcCentralMembraneMatching::GetNodes - creating TpcDistortionCorrectionContainer in node " << dcc_out_node_name << std::endl;
     m_dcc_out = new TpcDistortionCorrectionContainer;
     m_dcc_out->m_dimensions = 2;
-    m_dcc_out->m_phi_hist_in_radians = false;
+    //Phi distortion originally stored as r * dPhi, but changed now to just dPhi
+    //m_dcc_out->m_phi_hist_in_radians = false;
+    m_dcc_out->m_phi_hist_in_radians = true;
     m_dcc_out->m_interpolate_z = true;
     auto node = new PHDataNode<TpcDistortionCorrectionContainer>(m_dcc_out, dcc_out_node_name);
     runNode->addNode(node);
