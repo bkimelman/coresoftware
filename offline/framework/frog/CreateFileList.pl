@@ -41,7 +41,7 @@ my %exclude_these = (
 my %proddesc = (
 #    "1" => "hijing (0-12fm) pileup 0-12fm DELETED",
 #    "2" => "hijing (0-4.88fm) pileup 0-12fm DELETED",
-    "3" => "pythia8 pp MB",
+#    "3" => "pythia8 pp MB",
     "4" => "hijing (0-20fm) pileup 0-20fm",
 #    "5" => "hijing (0-12fm) pileup 0-20fm DELETED",
     "6" => "hijing (0-4.88fm) pileup 0-20fm",
@@ -64,7 +64,7 @@ my %proddesc = (
     "23" => "cosmic field off",
     "24" => "AMPT",
     "25" => "EPOS",
-    "26" => "JS pythia8 Detroit",
+    "26" => "JS pythia8 Detroit (MB)",
     "27" => "JS pythia8 Photonjet ptmin = 5GeV",
     "28" => "JS pythia8 Photonjet ptmin = 10GeV",
     "29" => "JS pythia8 Photonjet ptmin = 20GeV",
@@ -77,7 +77,12 @@ my %proddesc = (
     "36" => "JS pythia8 Jet ptmin = 5GeV",
     "37" => "hijing O+O (0-15fm)",
     "38" => "JS pythia8 Jet ptmin = 60GeV",
-    "39" => "JS pythia8 Jet ptmin = 12GeV"
+    "39" => "JS pythia8 Jet ptmin = 12GeV",
+    "40" => "Herwig Jet ptmin = 5 GeV",
+    "41" => "Herwig Jet ptmin = 12 GeV",
+    "42" => "Herwig Jet ptmin = 20 GeV",
+    "43" => "Herwig Jet ptmin = 40 GeV",
+    "44" => "Herwig Jet ptmin = 50 GeV"
     );
 
 my %pileupdesc = (
@@ -105,6 +110,7 @@ my $pmin;
 my $pmax;
 my $production;
 my $momentum;
+my $double;
 # that should teach me a lesson to not give a flag an optional string value
 # just using embed:s leads to the next ARGV to be used as argument, even if it
 # is the next option. Sadly getopt swallows the - so parsing this becomes
@@ -129,7 +135,7 @@ foreach my $argument (@ARGV)
 	else
 	{
 	    push(@newargs, $argument);
-	    if ($ARGV[$iarg+1] ne "pau" && $ARGV[$iarg+1] ne "auau" && $ARGV[$iarg+1] ne "central")
+	    if ($ARGV[$iarg+1] ne "pau" && $ARGV[$iarg+1] ne "auau" && $ARGV[$iarg+1] ne "central" && $ARGV[$iarg+1] ne "oo" )
 	    {
 		push(@newargs,"auau");
 	    }
@@ -142,7 +148,7 @@ foreach my $argument (@ARGV)
     $iarg++;
 }
 @ARGV=@newargs;
-GetOptions('embed:s' => \$embed, 'l:i' => \$last_segment, 'momentum:s' => \$momentum, 'n:i' => \$nEvents, "nobkgpileup" => \$nobkgpileup, "nopileup" => \$nopileup, "particle:s" => \$particle, 'pileup:i' => \$pileup, "pmin:i" => \$pmin, "pmax:i"=>\$pmax, "production:s"=>\$production, 'rand' => \$randomize, 'run:i' => \$runnumber, 's:i' => \$start_segment, 'type:i' =>\$prodtype, "verbose" =>\$verbose);
+GetOptions('double' => \$double, 'embed:s' => \$embed, 'l:i' => \$last_segment, 'momentum:s' => \$momentum, 'n:i' => \$nEvents, "nobkgpileup" => \$nobkgpileup, "nopileup" => \$nopileup, "particle:s" => \$particle, 'pileup:i' => \$pileup, "pmin:i" => \$pmin, "pmax:i"=>\$pmax, "production:s"=>\$production, 'rand' => \$randomize, 'run:i' => \$runnumber, 's:i' => \$start_segment, 'type:i' =>\$prodtype, "verbose" =>\$verbose);
 my $filenamestring;
 my %filetypes = ();
 my %notlike = ();
@@ -208,6 +214,7 @@ if (defined $nobkgpileup)
 }
 
 my $embedok = 0;
+my $doubleok = 0;
 
 if (defined $prodtype)
 {
@@ -321,6 +328,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -349,6 +360,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -516,6 +531,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -558,6 +577,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -659,6 +682,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -676,6 +703,11 @@ if (defined $prodtype)
     {
         $embedok = 1;
 	$filenamestring = "pythia8_PhotonJet10";
+	if (defined $double)
+	{
+	    $doubleok = 1;
+	    $filenamestring = "pythia8_PhotonJet10_pythia8_Detroit";
+	}
 	if (! defined $nopileup)
 	{
 	    if (defined $embed)
@@ -687,6 +719,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -716,6 +752,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -833,6 +873,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -861,6 +905,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -891,6 +939,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -919,6 +971,10 @@ if (defined $prodtype)
 		elsif ($embed eq "central")
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
 		}
 		else
 		{
@@ -963,6 +1019,10 @@ if (defined $prodtype)
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
 		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
 		else
 		{
 		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
@@ -980,6 +1040,44 @@ if (defined $prodtype)
     {
         $embedok = 1;
 	$filenamestring = "pythia8_Jet12";
+	if (defined $double)
+	{
+	    $doubleok = 1;
+	    $filenamestring = "pythia8_Jet12_pythia8_Detroit";
+	}
+	if (! defined $nopileup)
+	{
+	    if (defined $embed)
+	    {
+		if ($embed eq "pau")
+		{
+		    $filenamestring = sprintf("%s_sHijing_pAu_0_10fm%s",$filenamestring, $pAu_pileupstring);
+		}
+		elsif ($embed eq "central")
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		elsif ($embed eq "oo")
+		{
+		    $filenamestring = sprintf("%s_sHijing_OO_0_15fm%s",$filenamestring, $OO_pileupstring);
+		}
+		else
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+	    }
+	    else
+	    {
+		$filenamestring = sprintf("%s%s",$filenamestring,$pp_pileupstring);
+	    }
+	}
+        $pileupstring = $pp_pileupstring;
+	&commonfiletypes();
+    }
+    elsif ($prodtype == 40)
+    {
+        $embedok = 1;
+	$filenamestring = "Herwig_Jet5";
 	if (! defined $nopileup)
 	{
 	    if (defined $embed)
@@ -1005,7 +1103,122 @@ if (defined $prodtype)
         $pileupstring = $pp_pileupstring;
 	&commonfiletypes();
     }
-
+    elsif ($prodtype == 41)
+    {
+        $embedok = 1;
+	$filenamestring = "Herwig_Jet12";
+	if (! defined $nopileup)
+	{
+	    if (defined $embed)
+	    {
+		if ($embed eq "pau")
+		{
+		    $filenamestring = sprintf("%s_sHijing_pAu_0_10fm%s",$filenamestring, $pAu_pileupstring);
+		}
+		elsif ($embed eq "central")
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		else
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+	    }
+	    else
+	    {
+		$filenamestring = sprintf("%s%s",$filenamestring,$pp_pileupstring);
+	    }
+	}
+        $pileupstring = $pp_pileupstring;
+	&commonfiletypes();
+    }
+    elsif ($prodtype == 42)
+    {
+        $embedok = 1;
+	$filenamestring = "Herwig_Jet20";
+	if (! defined $nopileup)
+	{
+	    if (defined $embed)
+	    {
+		if ($embed eq "pau")
+		{
+		    $filenamestring = sprintf("%s_sHijing_pAu_0_10fm%s",$filenamestring, $pAu_pileupstring);
+		}
+		elsif ($embed eq "central")
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		else
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+	    }
+	    else
+	    {
+		$filenamestring = sprintf("%s%s",$filenamestring,$pp_pileupstring);
+	    }
+	}
+        $pileupstring = $pp_pileupstring;
+	&commonfiletypes();
+    }
+    elsif ($prodtype == 43)
+    {
+        $embedok = 1;
+	$filenamestring = "Herwig_Jet40";
+	if (! defined $nopileup)
+	{
+	    if (defined $embed)
+	    {
+		if ($embed eq "pau")
+		{
+		    $filenamestring = sprintf("%s_sHijing_pAu_0_10fm%s",$filenamestring, $pAu_pileupstring);
+		}
+		elsif ($embed eq "central")
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		else
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+	    }
+	    else
+	    {
+		$filenamestring = sprintf("%s%s",$filenamestring,$pp_pileupstring);
+	    }
+	}
+        $pileupstring = $pp_pileupstring;
+	&commonfiletypes();
+    }
+    elsif ($prodtype == 44)
+    {
+        $embedok = 1;
+	$filenamestring = "Herwig_Jet50";
+	if (! defined $nopileup)
+	{
+	    if (defined $embed)
+	    {
+		if ($embed eq "pau")
+		{
+		    $filenamestring = sprintf("%s_sHijing_pAu_0_10fm%s",$filenamestring, $pAu_pileupstring);
+		}
+		elsif ($embed eq "central")
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_488fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+		else
+		{
+		    $filenamestring = sprintf("%s_sHijing_0_20fm%s",$filenamestring, $AuAu_pileupstring);
+		}
+	    }
+	    else
+	    {
+		$filenamestring = sprintf("%s%s",$filenamestring,$pp_pileupstring);
+	    }
+	}
+        $pileupstring = $pp_pileupstring;
+	&commonfiletypes();
+    }
     else
     {
 	print "no production type $prodtype\n";
@@ -1019,6 +1232,11 @@ if (defined $embed && ! $embedok)
     print "Embedding not implemented for type $prodtype\n";
     exit(1);
 }
+if (defined $double && ! $doubleok)
+{
+    print "Double interactions not implemented for type $prodtype\n";
+    exit(1);
+}
 
 my $filenamestring_with_runnumber = sprintf("%s\-%010d-",$filenamestring,$runnumber);
 if ($#ARGV < 0)
@@ -1027,6 +1245,7 @@ if ($#ARGV < 0)
     {
 	print "usage: CreateFileLists.pl -type <production type> <filetypes>\n";
 	print "parameters:\n";
+	print "-double : double interactions, pp of your type and Detroit pp\n";
 	print "-embed : pp embedded into MB AuAu hijing (only for pp types)\n";
 	print "  -embed pau : embedded into pAu (only for pp types)\n";
 	print "  -embed central : embedded into central AuAu\n";

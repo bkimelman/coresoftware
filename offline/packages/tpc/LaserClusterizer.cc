@@ -11,6 +11,7 @@
 #include <trackbase/TrkrHit.h>
 #include <trackbase/TrkrHitSet.h>
 #include <trackbase/TrkrHitSetContainer.h>
+#include <trackbase/alignmentTransformationContainer.h>
 
 #include <ffaobjects/EventHeader.h>
 #include <fun4all/Fun4AllReturnCodes.h>
@@ -60,7 +61,7 @@
 namespace bg = boost::geometry;
 namespace bgi = boost::geometry::index;
 
-using point = bg::model::point<float, 3, bg::cs::cartesian>;
+using point = bg::model::point<double, 3, bg::cs::cartesian>;
 using box = bg::model::box<point>;
 using specHitKey = std::pair<TrkrDefs::hitkey, TrkrDefs::hitsetkey>;
 using adcKey = std::pair<unsigned int, specHitKey>;
@@ -319,16 +320,16 @@ namespace
 
       while (!q.empty())
       {
-        float ix = q.front().first.get<0>();
-        float iy = q.front().first.get<1>();
-        float iz = q.front().first.get<2>();
+        double ix = q.front().first.get<0>();
+        double iy = q.front().first.get<1>();
+        double iz = q.front().first.get<2>();
         q.pop();
 
         for (auto neigh : neighborOffsets)
         {
-          float nx = ix + neigh.get<0>();
-          float ny = iy + neigh.get<1>();
-          float nz = iz + neigh.get<2>();
+          double nx = ix + neigh.get<0>();
+          double ny = iy + neigh.get<1>();
+          double nz = iz + neigh.get<2>();
 
           for (unsigned int v = 0; v < unvisited.size(); v++)
           {
@@ -443,6 +444,8 @@ namespace
 
     double maxAdc = 0.0;
     TrkrDefs::hitsetkey maxKey = 0;
+    double secondmaxAdc = 0.0;
+    TrkrDefs::hitsetkey secondmaxKey = 0;
 
     unsigned int nHits = clusHits.size();
 
@@ -450,9 +453,9 @@ namespace
 
     int meanSide = 0;
 
-    std::vector<float> usedLayer;
-    std::vector<float> usedIPhi;
-    std::vector<float> usedIT;
+    std::vector<double> usedLayer;
+    std::vector<double> usedIPhi;
+    std::vector<double> usedIT;
 
     double meanLayer = 0.0;
     double meanIPhi = 0.0;
@@ -460,7 +463,7 @@ namespace
 
     for (auto &clusHit : clusHits)
     {
-      float coords[3] = {clusHit.first.get<0>(), clusHit.first.get<1>(), clusHit.first.get<2>()};
+      double coords[3] = {clusHit.first.get<0>(), clusHit.first.get<1>(), clusHit.first.get<2>()};
       std::pair<TrkrDefs::hitkey, TrkrDefs::hitsetkey> spechitkey = clusHit.second.second;
       unsigned int adc = clusHit.second.first;
 
@@ -485,7 +488,7 @@ namespace
       double hitZ = my_data.tdriftmax * my_data.tGeometry->get_drift_velocity() - hitzdriftlength;
 
       bool foundLayer = false;
-      for (float i : usedLayer)
+      for (double i : usedLayer)
       {
         if (coords[0] == i)
         {
@@ -500,7 +503,7 @@ namespace
       }
 
       bool foundIPhi = false;
-      for (float i : usedIPhi)
+      for (double i : usedIPhi)
       {
         if (coords[1] == i)
         {
@@ -515,7 +518,7 @@ namespace
       }
 
       bool foundIT = false;
-      for (float i : usedIT)
+      for (double i : usedIT)
       {
         if (coords[2] == i)
         {
@@ -536,7 +539,7 @@ namespace
       clus->setHitX(clus->getNhits() - 1, r * cos(phi));
       clus->setHitY(clus->getNhits() - 1, r * sin(phi));
       clus->setHitZ(clus->getNhits() - 1, hitZ);
-      clus->setHitAdc(clus->getNhits() - 1, (float) adc);
+      clus->setHitAdc(clus->getNhits() - 1, (double) adc);
 
       rSum += r * adc;
       phiSum += phi * adc;
@@ -554,9 +557,18 @@ namespace
 
       if (adc > maxAdc)
       {
+        secondmaxAdc = maxAdc;
+        secondmaxKey = maxKey;
         maxAdc = adc;
         maxKey = spechitkey.second;
       }
+      else if (adc > secondmaxAdc)
+      {
+        secondmaxAdc = adc;
+        secondmaxKey = spechitkey.second;
+      }
+
+
     }
 
     if (nHits == 0)
@@ -818,10 +830,68 @@ namespace
       clus->setSDWeightedIT(sqrt(sigmaWeightedIT / adcSum));
     }
 
+
+    pthread_mutex_lock(&mythreadlock);
+    // Get surface of max ADC hit
+    bool alignmentflag = alignmentTransformationContainer::use_alignment;
+    alignmentTransformationContainer::use_alignment = false;
+    Acts::Vector3 ideal(clus->getX(), clus->getY(), clus->getZ());
+    TrkrDefs::subsurfkey subsurfkey = 0;
+
+    Surface surface = my_data.tGeometry->get_tpc_surface_from_coords(
+        maxKey,
+        ideal,
+        subsurfkey);
+
+    if (!surface)
+    {
+      // try second maximum ADC hit
+      if (secondmaxKey != 0)
+      {
+        surface = my_data.tGeometry->get_tpc_surface_from_coords(
+            secondmaxKey,
+            ideal,
+            subsurfkey);
+      }
+
+      // if still no surface, skip this cluster
+      if (!surface)
+      {
+        // clean up
+        alignmentTransformationContainer::use_alignment = alignmentflag;
+        delete clus;
+        delete fit3D;
+        if (my_data.hitHist)
+        {
+          delete my_data.hitHist;
+          my_data.hitHist = nullptr;
+        }
+        pthread_mutex_unlock(&mythreadlock);
+        return;
+      }
+    }
+
+    // Convert from ideal TPC coordinates to surface coordinates 
+    Acts::Vector3 local = surface->transform(my_data.tGeometry->geometry().getGeoContext()).inverse() * (ideal * Acts::UnitConstants::cm);
+    local /= Acts::UnitConstants::cm;
+
+    // Convert back to TPC coordinates with alignment applied 
+    alignmentTransformationContainer::use_alignment = true;
+    Acts::Vector3 global = surface->transform(my_data.tGeometry->geometry().getGeoContext()) * (local * Acts::UnitConstants::cm);
+    global /= Acts::UnitConstants::cm;
+    clus->setX(global(0));
+    clus->setY(global(1));
+    clus->setZ(global(2));
+
+    alignmentTransformationContainer::use_alignment = alignmentflag;
+    pthread_mutex_unlock(&mythreadlock);
+
+
     const auto ckey = TrkrDefs::genClusKey(maxKey, my_data.cluster_vector.size());
     my_data.cluster_vector.push_back(clus);
     my_data.cluster_key_vector.push_back(ckey);
 
+    
     delete fit3D;
 
     if (my_data.hitHist)
@@ -861,7 +931,7 @@ namespace
 
       for (TrkrHitSet::ConstIterator hitr = hitrangei.first; hitr != hitrangei.second; ++hitr)
       {
-        float_t fadc = hitr->second->getAdc();
+        double_t fadc = hitr->second->getAdc();
         unsigned short adc = 0;
         if (fadc > my_data->adc_threshold)
         {
@@ -995,6 +1065,7 @@ int LaserClusterizer::InitRun(PHCompositeNode *topNode)
   // get the first layer to get the clock freq
   AdcClockPeriod = m_geom_container->GetFirstLayerCellGeom()->get_zstep();
   m_tdriftmax = AdcClockPeriod * NZBinsSide;
+  
 
   return Fun4AllReturnCodes::EVENT_OK;
 }

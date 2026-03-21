@@ -245,6 +245,7 @@ int JetCalib::process_event(PHCompositeNode *topNode)
     calib_jet->set_pz(calib_pt * std::sinh(eta));
     calib_jet->set_id(ijet);
     calib_jet->insert_comp(jet->get_comp_vec(),true);
+    calib_jet->insert_comp(jet->get_comp_vec(), true);
     calib_jet->set_isCalib(1);
     ijet++;
   }
