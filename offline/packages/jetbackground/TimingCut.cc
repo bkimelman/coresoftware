@@ -95,6 +95,7 @@ int TimingCut::process_event(PHCompositeNode *topNode)
       }
       else
       {
+        std::cout << "no jet " <<std::endl;
         continue;
       }
       if (jetpT > maxJetpT)
