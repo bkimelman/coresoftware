@@ -237,7 +237,11 @@ bool Fun4AllHistoManager::registerHisto(const std::string &hname, TNamed *h1d, c
   // For histograms, enforce error calculation and propagation
   if (h1d->InheritsFrom("TH1"))
   {
-    static_cast<TH1 *>(h1d)->Sumw2();// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+    TH1 *h = static_cast<TH1 *>(h1d); // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+    if (h->GetSumw2N() == 0)
+    {
+      h->Sumw2();
+    }
   }
 
   return true;
